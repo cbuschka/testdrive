@@ -1,6 +1,6 @@
 # Testdrive
 
-### Prototype of tool to control integration tests with docker.
+### Control for integration tests with docker.
 
 ## License
 Copyright (c) 2016-2019 by the [Cornelius Buschka](https://github.com/cbuschka).
