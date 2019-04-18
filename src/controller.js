@@ -41,6 +41,11 @@ class Controller {
               this.startContainer(item);
             };
           case 'STARTED':
+            return () => {
+              this.pingContainer(item);
+            };
+          case 'RUNNING':
+            return null;
           case 'STOPPED':
             return null;
           default:
@@ -53,7 +58,7 @@ class Controller {
 
     if (actions.length === 0) {
       const shutdownActions = this.dag.getItems()
-        .filter((item) => item.status === 'STARTED')
+        .filter((item) => item.status === 'RUNNING')
         .map((item) => {
           return () => {
             this.stopContainer(item);
@@ -107,7 +112,8 @@ class Controller {
   }
 
   pingContainer(item) {
-    // item.status = 'RUNNING';
+    item.status = 'RUNNING';
+    this.scheduleNextTick();
   }
 }
 
