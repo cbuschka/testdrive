@@ -95,6 +95,8 @@ class RunModel(object):
             elif self.__canStart(service):
                 actions.append(Command(self.__startServiceContainer, service))
             elif service.status == Status.STARTED:
+                actions.append(Command(self.__checkServiceContainer, service))
+            elif service.status == Status.AVAILABLE:
                 pass
             else:
                 pass
@@ -105,7 +107,7 @@ class RunModel(object):
             return False
 
         for dependency in service.config.get("depends_on", []):
-            if self.services[dependency].status not in [Status.STARTED]:
+            if self.services[dependency].status not in [Status.AVAILABLE]:
                 return False
 
         return True
@@ -132,6 +134,22 @@ class RunModel(object):
 
         stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
         LogWriter(service.name, stream).start()
+
+    def __checkServiceContainer(self, service):
+        if service.status != Status.STARTED:
+            log.warning("Cannot check container %s (%s) because not STARTED.", service.name, service.status)
+            return
+
+        service.status = Status.AVAILABLE_IN_PROGRESS
+        readycheck = service.config["readycheck"]
+        (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
+                                                        user=readycheck.get("user", None))
+        if exitCode == 0:
+            service.status = Status.AVAILABLE
+            console_output.print("Service {} now ready.", service.name)
+        else:
+            service.status = Status.STARTED
+            console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
 
     def __stopServiceContainer(self, service):
         if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
@@ -171,7 +189,10 @@ class RunModel(object):
         services = [service for name, service in self.services.items() if
                     service.container is not None and service.container.id == containerId]
         for service in services:
-            service.status = Status.STARTED
+            if "readycheck" not in service.config.keys():
+                service.status = Status.AVAILABLE
+            else:
+                service.status = Status.STARTED
             console_output.print("Service {} started.", service.name)
 
     def __onContainerDied(self, event):

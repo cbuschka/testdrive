@@ -2,8 +2,8 @@ version: '1.0'
 services:
     db:
         image: 'postgres:10'
-        healthcheck:
-            test: "/bin/bash -c 'exit 0'"
+        readycheck:
+            command: "pg_isready"
 
 driver:
     image: 'debian:stretch'
