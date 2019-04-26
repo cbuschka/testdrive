@@ -19,21 +19,26 @@ class RunCommand:
         config = Config.from_file("testdrive.yml")
         self.run_model = RunModel(context=self.context)
 
-        event_timer = EventTimer(queue=self.run_model.eventQueue)
-        event_timer.start()
+        try:
+            event_timer = EventTimer(queue=self.run_model.eventQueue)
+            event_timer.start()
 
-        event_watcher = DockerEventWatcher(docker_client=self.context.docker_client, queue=self.run_model.eventQueue)
-        event_watcher.start()
+            event_watcher = DockerEventWatcher(docker_client=self.context.docker_client,
+                                               queue=self.run_model.eventQueue)
+            event_watcher.start()
 
-        self.run_model.set_driver(config.data["driver"])
-        if "services" in config.data:
-            self.__add_services_from(config.data["services"])
+            self.run_model.set_driver(config.data["driver"])
+            if "services" in config.data:
+                self.__add_services_from(config.data["services"])
 
-        exitCode = self.run_model.run()
+            exitCode = self.run_model.run()
 
-        self.run_model.shutdown()
+            event_timer.stop()
+            event_watcher.stop()
 
-        return exitCode
+            return exitCode
+        finally:
+            self.run_model.shutdown()
 
     def __add_services_from(self, services):
         for name, config in services.items():

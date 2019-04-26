@@ -80,10 +80,9 @@ class RunModel(object):
 
     def shutdown(self):
         services = [service for name, service in self.services.items() if
-                    service.status in [Status.START_IN_PROGRESS, Status.STARTED, Status.AVAILABLE_IN_PROGRESS,
-                                       Status.AVAILABLE]]
+                    service.container != None]
         for service in services:
-            self.__stopServiceContainer(service)
+            self.__removeServiceContainer(service)
 
     def __get_actions(self):
         actions = []
@@ -139,6 +138,13 @@ class RunModel(object):
 
         service.status = Status.STOP_IN_PROGRESS
         service.container.stop()
+
+    def __removeServiceContainer(self, service):
+        if service.container == None:
+            return
+
+        service.status = Status.DESTROY_IN_PROGRESS
+        service.container.remove(force=True, v=True)
 
     def __onTick(self):
         if self.services["driver"].status in [Status.STOPPED, Status.DESTROYED]:

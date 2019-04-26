@@ -20,16 +20,22 @@ class DockerEventWatcher(object):
         if self.thread is not None:
             return
 
-        self.thread = Thread(target=self.read_events)
+        self.thread = Thread(target=self.__read_events)
         self.thread.setDaemon(True)
         self.thread.start()
 
-    def read_events(self):
+    def __read_events(self):
+        myThread = self.thread
+
         for dockerEvent in self.docker_client.events(decode=True):
+            if myThread != self.thread:
+                break
+
             event = self.__toEvent(dockerEvent)
             if event is not None:
                 # log.info("Event from docker: %s", event)
                 self.queue.put(event)
+
 
     def __toEvent(self, event):
         if event["Type"] == 'container' and event["Action"] == 'create':
@@ -45,8 +51,4 @@ class DockerEventWatcher(object):
             pass
 
     def stop(self):
-        if self.thread is None:
-            return
-
-        self.thread.stop()
         self.thread = None

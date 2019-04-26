@@ -4,7 +4,8 @@ from __future__ import unicode_literals
 import logging
 import time
 from threading import Thread
-from testdrive.event import  Event
+
+from testdrive.event import Event
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,12 @@ class EventTimer(object):
         self.thread.start()
 
     def __run_loop(self):
-        while True:
+        myThread = self.thread
+
+        while myThread == self.thread:
             time.sleep(1)
             if self.queue is not None:
                 self.queue.put(Event(type="tick", data=None))
+
+    def stop(self):
+        self.thread = None
