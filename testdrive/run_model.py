@@ -83,13 +83,23 @@ class RunModel(object):
         for name, service in self.services.items():
             if service.status == Status.NEW:
                 actions.append(Command(self.__createServiceContainer, service))
-            elif service.status == Status.CREATED:
+            elif self.__canStart(service):
                 actions.append(Command(self.__startServiceContainer, service))
             elif service.status == Status.STARTED:
                 pass
             else:
                 pass
         return actions
+
+    def __canStart(self, service):
+        if service.status != Status.CREATED:
+            return False
+
+        for dependency in service.config.get("depends_on", []):
+            if self.services[dependency].status not in [Status.STARTED]:
+                return False
+
+        return True
 
     def __createServiceContainer(self, service):
         if service.status != Status.NEW:

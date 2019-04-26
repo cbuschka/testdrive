@@ -6,3 +6,5 @@ services:
 driver:
     image: 'debian:stretch'
     command: [ "bash", "-c", "for i in 1 2 3 4 5 6 7 8 9 0; do echo $i; sleep 1; done; exit 11" ]
+    depends_on:
+        - db
