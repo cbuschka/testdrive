@@ -202,5 +202,6 @@ class RunModel(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.STOPPED
-            service.exitCode = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
+            exitCodeStr = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
+            service.exitCode = int(exitCodeStr) if isinstance(exitCodeStr, str) else None
             console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)
