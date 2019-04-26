@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "config_schema_v1.0.json",
+    "type": "object",
+    "required": [
+        "version"
+    ],
+    "properties": {
+        "version": {
+            "type": "string"
+        }
+    }
+}

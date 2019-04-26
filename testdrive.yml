@@ -1,0 +1,8 @@
+version: '1.0'
+services:
+    db:
+        image: 'postgres:10'
+
+driver:
+    image: 'debian:stretch'
+    command: [ "bash", "-c", "exit 11" ]
