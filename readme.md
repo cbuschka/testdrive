@@ -1,6 +1,30 @@
 # Testdrive
 
-### Control for integration tests with docker.
+### Multi-docker-container-orchestration for integration tests.
+
+## Setup dev
+
+### Prerequesites
+Linux, Python 3.7 with virtualenv
+
+### Set up dev env
+```
+./scripts/setup-dev.sh
+```
+
+```
+source ./.venv/3.7/bin/active
+```
+
+=> Ready to develop.
+
+## Build
+
+(Assuming dev env is set up.)
+
+```
+./scripts/build-linux.sh
+```
 
 ## License
 Copyright (c) 2016-2019 by the [Cornelius Buschka](https://github.com/cbuschka).
