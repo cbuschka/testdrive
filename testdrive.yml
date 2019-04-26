@@ -2,6 +2,8 @@ version: '1.0'
 services:
     db:
         image: 'postgres:10'
+        healthcheck:
+            test: ["CMD-SHELL", "exit 0"]
 
 driver:
     image: 'debian:stretch'

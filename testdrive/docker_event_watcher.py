@@ -36,6 +36,8 @@ class DockerEventWatcher(object):
             return Event(type='containerCreated', data=event)
         elif event["Type"] == 'container' and event["Action"] == 'start':
             return Event(type='containerStarted', data=event)
+        elif event["Type"] == 'container' and event["Action"] == 'kill':
+            return Event(type='containerDied', data=event)
         elif event["Type"] == 'container' and event["Action"] == 'die':
             return Event(type='containerDied', data=event)
         else:

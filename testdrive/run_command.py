@@ -29,7 +29,11 @@ class RunCommand:
         if "services" in config.data:
             self.__add_services_from(config.data["services"])
 
-        return self.run_model.run()
+        exitCode = self.run_model.run()
+
+        self.run_model.shutdown()
+
+        return exitCode
 
     def __add_services_from(self, services):
         for name, config in services.items():

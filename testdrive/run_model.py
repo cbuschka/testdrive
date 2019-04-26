@@ -78,6 +78,13 @@ class RunModel(object):
 
         return self.services["driver"].exitCode
 
+    def shutdown(self):
+        services = [service for name, service in self.services.items() if
+                    service.status in [Status.START_IN_PROGRESS, Status.STARTED, Status.AVAILABLE_IN_PROGRESS,
+                                       Status.AVAILABLE]]
+        for service in services:
+            self.__stopServiceContainer(service)
+
     def __get_actions(self):
         actions = []
         for name, service in self.services.items():
@@ -109,8 +116,9 @@ class RunModel(object):
         docker_client = self.context.docker_client
         service.status = Status.CREATE_IN_PROGRESS
         image = service.config["image"]
+        healthcheck = service.config.get("healthcheck", {"test": []})
         command = service.config.get("command", None)
-        service.container = docker_client.containers.create(image=image, command=command)
+        service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck)
 
     def __startServiceContainer(self, service):
         if service.status != Status.CREATED:
@@ -122,6 +130,15 @@ class RunModel(object):
 
         stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
         LogWriter(service.name, stream).start()
+
+    def __stopServiceContainer(self, service):
+        if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
+                                  Status.AVAILABLE_IN_PROGRESS]:
+            log.warning("Cannot stop container %s (%s) because not stoppable.", service.name, service.status)
+            return
+
+        service.status = Status.STOP_IN_PROGRESS
+        service.container.stop()
 
     def __onTick(self):
         if self.services["driver"].status in [Status.STOPPED, Status.DESTROYED]:
