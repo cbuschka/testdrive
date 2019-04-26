@@ -5,6 +5,8 @@ import logging
 from enum import Enum
 from queue import Queue, Empty
 
+from testdrive.log_writer import LogWriter
+
 log = logging.getLogger(__name__)
 
 
@@ -107,6 +109,9 @@ class RunModel(object):
 
         service.status = Status.START_IN_PROGRESS
         service.container.start()
+
+        stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
+        LogWriter(service.name, stream).start()
 
     def __onTick(self):
         if self.services["driver"].status in [Status.STOPPED, Status.DESTROYED]:
