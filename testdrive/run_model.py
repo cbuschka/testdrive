@@ -1,24 +1,18 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import docker
+from docker.errors import DockerException, NotFound
 import logging
 from enum import Enum
 from queue import Queue, Empty
 
 from testdrive.log_writer import LogWriter
+from testdrive.callable import Callable
 
 log = logging.getLogger(__name__)
 
 from testdrive.console_output import console_output
-
-
-class Command:
-    def __init__(self, func, *args):
-        self.args = args
-        self.func = func
-
-    def run(self):
-        return self.func(*self.args)
 
 
 class Status(Enum):
@@ -82,8 +76,8 @@ class RunModel(object):
         return self.services["driver"].exitCode
 
     def shutdown(self):
-        services = [service for name, service in self.services.items() if
-                    service.container != None]
+        self.done = True
+        services = [service for name, service in self.services.items() if service.container != None]
         for service in services:
             self.__removeServiceContainer(service)
 
@@ -91,11 +85,11 @@ class RunModel(object):
         actions = []
         for name, service in self.services.items():
             if service.status == Status.NEW:
-                actions.append(Command(self.__createServiceContainer, service))
+                actions.append(Callable(self.__createServiceContainer, service))
             elif self.__canStart(service):
-                actions.append(Command(self.__startServiceContainer, service))
+                actions.append(Callable(self.__startServiceContainer, service))
             elif service.status == Status.STARTED:
-                actions.append(Command(self.__checkServiceContainer, service))
+                actions.append(Callable(self.__checkServiceContainer, service))
             elif service.status == Status.AVAILABLE:
                 pass
             else:
@@ -140,16 +134,19 @@ class RunModel(object):
             log.warning("Cannot check container %s (%s) because not STARTED.", service.name, service.status)
             return
 
-        service.status = Status.AVAILABLE_IN_PROGRESS
-        readycheck = service.config["readycheck"]
-        (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
-                                                        user=readycheck.get("user", None))
-        if exitCode == 0:
-            service.status = Status.AVAILABLE
-            console_output.print("Service {} now ready.", service.name)
-        else:
+        try:
+            service.status = Status.AVAILABLE_IN_PROGRESS
+            readycheck = service.config["readycheck"]
+            (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
+                                                            user=readycheck.get("user", None))
+            if exitCode == 0:
+                service.status = Status.AVAILABLE
+                console_output.print("Service {} now ready.", service.name)
+            else:
+                service.status = Status.STARTED
+                console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
+        except (NotFound) as e:
             service.status = Status.STARTED
-            console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
 
     def __stopServiceContainer(self, service):
         if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
@@ -164,8 +161,12 @@ class RunModel(object):
         if service.container == None:
             return
 
-        service.status = Status.DESTROY_IN_PROGRESS
-        service.container.remove(force=True, v=True)
+        try:
+            service.status = Status.DESTROY_IN_PROGRESS
+            service.container.remove(force=True, v=True)
+        except (NotFound) as e:
+            service.container = None
+            service.status = Status.DESTROYED
 
     def __onTick(self):
         if self.services["driver"].status in [Status.STOPPED, Status.DESTROYED]:
@@ -174,7 +175,7 @@ class RunModel(object):
 
         actions = self.__get_actions()
         for action in actions:
-            action.run()
+            action()
 
     def __onContainerCreated(self, event):
         containerId = event.data["id"]
@@ -201,5 +202,5 @@ class RunModel(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.STOPPED
-            service.exitCode = int(event.data["Actor"]["Attributes"]["exitCode"])
+            service.exitCode = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
             console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)
