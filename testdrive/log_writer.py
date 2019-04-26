@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import logging
 from threading import Thread
 
-log = logging.getLogger(__name__)
+from testdrive.console_output import console_output
 
 
 class LogWriter(object):
@@ -23,7 +22,7 @@ class LogWriter(object):
 
     def __read_logs(self):
         for line in self.stream:
-            print("[{}] {}".format(self.name, line.decode('unicode_escape').strip()))
+            console_output.print("[{}] {}", self.name, line.decode('unicode_escape').strip())
 
     def stop(self):
         if self.thread is None:

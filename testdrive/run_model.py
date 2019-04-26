@@ -9,6 +9,8 @@ from testdrive.log_writer import LogWriter
 
 log = logging.getLogger(__name__)
 
+from testdrive.console_output import console_output
+
 
 class Command:
     def __init__(self, func, *args):
@@ -74,7 +76,8 @@ class RunModel(object):
             elif event.type in ["containerDied"]:
                 self.__onContainerDied(event)
             else:
-                log.info("Event %s ignored.", event)
+                # log.info("Event %s ignored.", event)
+                pass
 
         return self.services["driver"].exitCode
 
@@ -161,7 +164,7 @@ class RunModel(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.CREATED
-            log.info("Service %s created.", service.name)
+            console_output.print("Service {} created.", service.name)
 
     def __onContainerStarted(self, event):
         containerId = event.data["id"]
@@ -169,7 +172,7 @@ class RunModel(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.STARTED
-            log.info("Service %s started.", service.name)
+            console_output.print("Service {} started.", service.name)
 
     def __onContainerDied(self, event):
         containerId = event.data["id"]
@@ -178,4 +181,4 @@ class RunModel(object):
         for service in services:
             service.status = Status.STOPPED
             service.exitCode = int(event.data["Actor"]["Attributes"]["exitCode"])
-            log.info("Service %s stopped.", service.name)
+            console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)

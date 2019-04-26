@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import logging
 import sys
 
+from testdrive.console_output import console_output
 from testdrive.context import Context
 from testdrive.run_command import RunCommand
 
@@ -18,5 +19,5 @@ def main():
         exitCode = command.run()
         sys.exit(exitCode)
     except (KeyboardInterrupt):
-        log.error("Aborting.")
+        console_output.print("Aborting...")
         sys.exit(1)
