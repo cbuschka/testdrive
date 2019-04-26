@@ -10,7 +10,7 @@ from testdrive.event import Event
 log = logging.getLogger(__name__)
 
 
-class EventWatcher(object):
+class DockerEventWatcher(object):
     def __init__(self, docker_client, queue):
         self.queue = queue
         self.thread = None

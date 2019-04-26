@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 import logging
 
 from testdrive.config.config import Config
+from testdrive.docker_event_watcher import DockerEventWatcher
 from testdrive.event_timer import EventTimer
-from testdrive.event_watcher import EventWatcher
 from testdrive.run_model import RunModel
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class RunCommand:
         event_timer = EventTimer(queue=self.run_model.eventQueue)
         event_timer.start()
 
-        event_watcher = EventWatcher(docker_client=self.context.docker_client, queue=self.run_model.eventQueue)
+        event_watcher = DockerEventWatcher(docker_client=self.context.docker_client, queue=self.run_model.eventQueue)
         event_watcher.start()
 
         self.run_model.set_driver(config.data["driver"])
