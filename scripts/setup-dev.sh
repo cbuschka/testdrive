@@ -16,4 +16,6 @@ echo "Activate with
 
 source ${PROJECT_DIR}/.venv/3.7/bin/activate
 
+export PYTHONPATH=${PROJECT_DIR}
+
 "
