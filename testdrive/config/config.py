@@ -4,12 +4,27 @@ from __future__ import unicode_literals
 import io
 
 import yaml
+import json
+import os
+import jsonschema
+
+
+def load_schema():
+    script_dir = os.path.dirname(__file__)
+    file_path = os.path.join(script_dir, 'config_schema_v1.0.json')
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+
+SCHEMA_V1_0 = load_schema()
 
 
 class Config(object):
     @classmethod
     def from_file(cls, filename):
-        return cls(load_yaml(filename))
+        config = load_yaml(filename)
+        jsonschema.validate(instance=config, schema=SCHEMA_V1_0)
+        return cls(config)
 
     def __init__(self, data):
         self.data = data
