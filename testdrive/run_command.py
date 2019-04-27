@@ -34,15 +34,14 @@ class RunCommand:
 
             return self.run_model.run()
         finally:
-            self.__shutdown()
+            self.event_timer.stop()
+            self.event_watcher.stop()
 
     def __start(self):
         self.event_timer.start()
         self.event_watcher.start()
 
     def __shutdown(self):
-        self.event_timer.stop()
-        self.event_watcher.stop()
         self.run_model.shutdown()
 
     def __add_services_from(self, services):

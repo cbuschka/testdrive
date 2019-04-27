@@ -77,24 +77,36 @@ class RunModel(object):
 
     def shutdown(self):
         self.done = True
-        services = [service for name, service in self.services.items() if service.container != None]
+        services = [service for name, service in self.services.items()
+                    if service.container != None
+                    and service.status in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
+                                           Status.AVAILABLE_IN_PROGRESS, Status.CREATED, Status.STOPPED]]
         for service in services:
-            self.__removeServiceContainer(service)
+            self.__stopServiceContainer(service)
 
     def __get_actions(self):
         actions = []
+        containersLeft = False
         for name, service in self.services.items():
             if service.status == Status.NEW:
                 actions.append(Callable(self.__createServiceContainer, service))
+                containersLeft = True
             elif self.__canStart(service):
                 actions.append(Callable(self.__startServiceContainer, service))
+                containersLeft = True
             elif service.status == Status.STARTED:
                 actions.append(Callable(self.__checkServiceContainer, service))
+                containersLeft = True
             elif service.status == Status.AVAILABLE:
+                containersLeft = True
+                pass
+            elif service.status == Status.STOPPED:
+                actions.append(Callable(self.__removeServiceContainer, service))
+            elif service.status == Status.DESTROYED:
                 pass
             else:
                 pass
-        return actions
+        return (actions, containersLeft)
 
     def __canStart(self, service):
         if service.status != Status.CREATED:
@@ -111,6 +123,7 @@ class RunModel(object):
             log.warning("Cannot create container %s (%s) because not NEW.", service.name, service.status)
             return
 
+        console_output.print("Creating service {}...", service.name)
         docker_client = self.context.docker_client
         service.status = Status.CREATE_IN_PROGRESS
         image = service.config["image"]
@@ -123,6 +136,7 @@ class RunModel(object):
             log.warning("Cannot create container %s (%s) because not CREATED.", service.name, service.status)
             return
 
+        console_output.print("Starting service {}...", service.name)
         service.status = Status.START_IN_PROGRESS
         service.container.start()
 
@@ -134,6 +148,7 @@ class RunModel(object):
             log.warning("Cannot check container %s (%s) because not STARTED.", service.name, service.status)
             return
 
+        console_output.print("Checking service {}...", service.name)
         try:
             service.status = Status.AVAILABLE_IN_PROGRESS
             readycheck = service.config["readycheck"]
@@ -150,17 +165,24 @@ class RunModel(object):
 
     def __stopServiceContainer(self, service):
         if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
-                                  Status.AVAILABLE_IN_PROGRESS]:
+                                  Status.AVAILABLE_IN_PROGRESS, Status.CREATED, Status.STOPPED]:
             log.warning("Cannot stop container %s (%s) because not stoppable.", service.name, service.status)
             return
 
-        service.status = Status.STOP_IN_PROGRESS
-        service.container.stop()
+        if service.status == Status.CREATED:
+            service.status = Status.STOPPED
+        elif service.status == Status.STOPPED:
+            pass
+        else:
+            console_output.print("Stopping service {}...", service.name)
+            service.status = Status.STOP_IN_PROGRESS
+            service.container.stop()
 
     def __removeServiceContainer(self, service):
         if service.container == None:
             return
 
+        console_output.print("Removing service {}...", service.name)
         try:
             service.status = Status.DESTROY_IN_PROGRESS
             service.container.remove(force=True, v=True)
@@ -173,7 +195,10 @@ class RunModel(object):
             self.done = True
             return
 
-        actions = self.__get_actions()
+        (actions, containersLeft) = self.__get_actions()
+        if len(actions) == 0 and not containersLeft:
+            self.done = True
+
         for action in actions:
             action()
 
@@ -203,5 +228,5 @@ class RunModel(object):
         for service in services:
             service.status = Status.STOPPED
             exitCodeStr = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
-            service.exitCode = int(exitCodeStr) if isinstance(exitCodeStr, str) else None
+            service.exitCode = int(exitCodeStr)
             console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)
