@@ -4,17 +4,19 @@ PROJECT_DIR=$(cd `dirname $0`/.. && pwd)
 
 cd ${PROJECT_DIR}
 
-if [ ! -d "${PROJECT_DIR}/.venv/3.7/" ]; then
-  virtualenv -p python3.7 ${PROJECT_DIR}/.venv/3.7/
+VENV_DIR=${PROJECT_DIR}/.venv/3.7/
+
+if [ ! -d "${VENV_DIR}" ]; then
+  virtualenv -p python3.7 ${VENV_DIR}
 fi
 
-source ${PROJECT_DIR}/.venv/3.7/bin/activate
+source ${VENV_DIR}/bin/activate
 
 ${VIRTUAL_ENV}/bin/pip3 install -r requirements.txt -r requirements-build.txt -r requirements-dev.txt
 
 echo "Activate with 
 
-source ${PROJECT_DIR}/.venv/3.7/bin/activate
+source ${VENV_DIR}/bin/activate
 
 export PYTHONPATH=${PROJECT_DIR}
 
