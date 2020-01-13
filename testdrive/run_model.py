@@ -1,11 +1,11 @@
-import docker
-from docker.errors import DockerException, NotFound
 import logging
 from enum import Enum
 from queue import Queue, Empty
 
-from testdrive.log_writer import LogWriter
+from docker.errors import NotFound
+
 from testdrive.callable import Callable
+from testdrive.log_writer import LogWriter
 
 log = logging.getLogger(__name__)
 
@@ -225,5 +225,5 @@ class RunModel(object):
         for service in services:
             service.status = Status.STOPPED
             exitCodeStr = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
-            service.exitCode = int(exitCodeStr)
+            service.exitCode = int(exitCodeStr or "127")
             console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)
