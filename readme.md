@@ -5,7 +5,10 @@
 ## Setup dev
 
 ### Prerequesites
-Linux, Python 3.7 with virtualenv
+* Linux
+* python 3.7 with virtualenv
+* GNU make
+* docker
 
 ### Set up dev env
 ```
