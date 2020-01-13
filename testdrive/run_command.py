@@ -4,7 +4,6 @@ from testdrive.config.config import Config
 from testdrive.docker_event_watcher import DockerEventWatcher
 from testdrive.event_timer import EventTimer
 from testdrive.run_model import RunModel
-from testdrive.callable import Callable
 
 log = logging.getLogger(__name__)
 
@@ -13,7 +12,6 @@ class RunCommand:
     def __init__(self, context):
         self.context = context
         self.run_model = RunModel(context=self.context)
-        self.shutdownCallable = Callable(self.__shutdown)
         self.event_timer = EventTimer(queue=self.run_model.eventQueue)
         self.event_watcher = DockerEventWatcher(docker_client=self.context.docker_client,
                                                 queue=self.run_model.eventQueue)
@@ -23,7 +21,7 @@ class RunCommand:
 
         try:
             self.__start()
-            self.context.add_signal_handler(self.shutdownCallable)
+            self.context.add_signal_handler(self.__shutdown)
 
             self.run_model.set_driver(config.data["driver"])
             if "services" in config.data:
