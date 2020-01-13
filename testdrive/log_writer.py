@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from threading import Thread
 
 from testdrive.console_output import console_output
