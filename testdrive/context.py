@@ -21,7 +21,7 @@ def handle_signal(signum, frame):
 
 class Context:
     def __init__(self, args=None):
-        self.args = sys.argv[1:] if args is None else args
+        self.args = args or sys.argv[1:]
         self.setup_logging()
         self.docker_client = docker.from_env()
 
