@@ -2,6 +2,7 @@ import logging
 
 from testdrive.config.config import Config
 from testdrive.console_output import console_output
+from testdrive.context import Context
 from testdrive.docker_event_watcher import DockerEventWatcher
 from testdrive.event_timer import EventTimer
 from testdrive.run_model import RunModel
@@ -11,10 +12,10 @@ log = logging.getLogger(__name__)
 
 
 class RunCommand:
-    def __init__(self, context):
-        self.context = context
-        self.run_model = RunModel(context=self.context)
-        self.runner = Runner(context, self.run_model)
+    def __init__(self):
+        self.context = Context()
+        self.run_model = RunModel(self.context)
+        self.runner = Runner(self.context, self.run_model)
         self.event_timer = EventTimer(queue=self.runner.eventQueue)
         self.event_watcher = DockerEventWatcher(docker_client=self.context.docker_client,
                                                 queue=self.runner.eventQueue)
