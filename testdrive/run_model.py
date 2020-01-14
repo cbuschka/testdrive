@@ -18,8 +18,8 @@ class Status(Enum):
     CREATED = 3
     START_IN_PROGRESS = 4
     STARTED = 5
-    AVAILABLE_IN_PROGRESS = 6
-    AVAILABLE = 7
+    HEALTHCHECK_IN_PROGRESS = 6
+    READY = 7
     STOP_IN_PROGRESS = 8
     STOPPED = 9
     DESTROY_IN_PROGRESS = 10
@@ -76,8 +76,8 @@ class RunModel(object):
         self.done = True
         services = [service for name, service in self.services.items()
                     if service.container != None
-                    and service.status in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
-                                           Status.AVAILABLE_IN_PROGRESS, Status.CREATED, Status.STOPPED]]
+                    and service.status in [Status.STARTED, Status.START_IN_PROGRESS, Status.READY,
+                                           Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED, Status.STOPPED]]
         for service in services:
             self.__stopServiceContainer(service)
 
@@ -94,7 +94,7 @@ class RunModel(object):
             elif service.status == Status.STARTED:
                 actions.append(Callable(self.__checkServiceContainer, service))
                 containersLeft = True
-            elif service.status == Status.AVAILABLE:
+            elif service.status == Status.READY:
                 containersLeft = True
                 pass
             elif service.status == Status.STOPPED:
@@ -110,7 +110,7 @@ class RunModel(object):
             return False
 
         for dependency in service.config.get("depends_on", []):
-            if self.services[dependency].status not in [Status.AVAILABLE]:
+            if self.services[dependency].status not in [Status.READY]:
                 return False
 
         return True
@@ -147,12 +147,12 @@ class RunModel(object):
 
         console_output.print("Checking service {}...", service.name)
         try:
-            service.status = Status.AVAILABLE_IN_PROGRESS
+            service.status = Status.HEALTHCHECK_IN_PROGRESS
             readycheck = service.config["readycheck"]
             (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
                                                             user=readycheck.get("user", None))
             if exitCode == 0:
-                service.status = Status.AVAILABLE
+                service.status = Status.READY
                 console_output.print("Service {} now ready.", service.name)
             else:
                 service.status = Status.STARTED
@@ -161,8 +161,8 @@ class RunModel(object):
             service.status = Status.STARTED
 
     def __stopServiceContainer(self, service):
-        if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.AVAILABLE,
-                                  Status.AVAILABLE_IN_PROGRESS, Status.CREATED, Status.STOPPED]:
+        if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.READY,
+                                  Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED, Status.STOPPED]:
             log.warning("Cannot stop container %s (%s) because not stoppable.", service.name, service.status)
             return
 
@@ -213,7 +213,7 @@ class RunModel(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             if "readycheck" not in service.config.keys():
-                service.status = Status.AVAILABLE
+                service.status = Status.READY
             else:
                 service.status = Status.STARTED
             console_output.print("Service {} started.", service.name)
@@ -225,5 +225,8 @@ class RunModel(object):
         for service in services:
             service.status = Status.STOPPED
             exitCodeStr = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
-            service.exitCode = int(exitCodeStr or "127")
+            try:
+                service.exitCode = int(exitCodeStr)
+            except (TypeError):
+                service.exitCode = 127
             console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)
