@@ -4,10 +4,17 @@ import signal
 import docker
 import sys
 
+from testdrive.console_output import console_output
+
 signal_handlers = []
+SIGNAL_NAMES = {
+    signal.SIGINT.value: "SIGINT",
+    signal.SIGTERM.value: "SIGTERM",
+}
 
 
 def handle_signal(signum, frame):
+    console_output.print("Received signal {}...", SIGNAL_NAMES.get(signum, signum))
     for signal_handler in signal_handlers:
         signal_handler()
 

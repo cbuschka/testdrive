@@ -1,10 +1,8 @@
 import logging
 from enum import Enum
-from queue import Queue, Empty
 
 from docker.errors import NotFound
 
-from testdrive.callable import Callable
 from testdrive.log_writer import LogWriter
 
 log = logging.getLogger(__name__)
@@ -39,8 +37,6 @@ class RunModel(object):
     def __init__(self, context):
         self.context = context
         self.services = {}
-        self.eventQueue = Queue()
-        self.done = False
 
     def set_driver(self, config):
         self.services["driver"] = DriverOrService("driver", config)
@@ -48,64 +44,7 @@ class RunModel(object):
     def add_service(self, name, config):
         self.services[name] = DriverOrService(name, config)
 
-    def run(self):
-        if not "driver" in self.services:
-            raise ValueError("No driver.")
-
-        while not self.done:
-            try:
-                event = self.eventQueue.get(timeout=0.3)
-            except (Empty) as e:
-                continue
-
-            if event.type in ["tick", "serviceAdded", "driverAdded"]:
-                self.__onTick()
-            elif event.type in ["containerCreated"]:
-                self.__onContainerCreated(event)
-            elif event.type in ["containerStarted"]:
-                self.__onContainerStarted(event)
-            elif event.type in ["containerDied"]:
-                self.__onContainerDied(event)
-            else:
-                # log.info("Event %s ignored.", event)
-                pass
-
-        return self.services["driver"].exitCode
-
-    def shutdown(self):
-        self.done = True
-        services = [service for name, service in self.services.items()
-                    if service.container != None
-                    and service.status in [Status.STARTED, Status.START_IN_PROGRESS, Status.READY,
-                                           Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED, Status.STOPPED]]
-        for service in services:
-            self.__stopServiceContainer(service)
-
-    def __get_actions(self):
-        actions = []
-        containersLeft = False
-        for name, service in self.services.items():
-            if service.status == Status.NEW:
-                actions.append(Callable(self.__createServiceContainer, service))
-                containersLeft = True
-            elif self.__canStart(service):
-                actions.append(Callable(self.__startServiceContainer, service))
-                containersLeft = True
-            elif service.status == Status.STARTED:
-                actions.append(Callable(self.__checkServiceContainer, service))
-                containersLeft = True
-            elif service.status == Status.READY:
-                containersLeft = True
-                pass
-            elif service.status == Status.STOPPED:
-                actions.append(Callable(self.__removeServiceContainer, service))
-            elif service.status == Status.DESTROYED:
-                pass
-            else:
-                pass
-        return (actions, containersLeft)
-
-    def __canStart(self, service):
+    def canStart(self, service):
         if service.status != Status.CREATED:
             return False
 
@@ -115,7 +54,7 @@ class RunModel(object):
 
         return True
 
-    def __createServiceContainer(self, service):
+    def createServiceContainer(self, service):
         if service.status != Status.NEW:
             log.warning("Cannot create container %s (%s) because not NEW.", service.name, service.status)
             return
@@ -128,7 +67,7 @@ class RunModel(object):
         command = service.config.get("command", None)
         service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck)
 
-    def __startServiceContainer(self, service):
+    def startServiceContainer(self, service):
         if service.status != Status.CREATED:
             log.warning("Cannot create container %s (%s) because not CREATED.", service.name, service.status)
             return
@@ -140,7 +79,7 @@ class RunModel(object):
         stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
         LogWriter(service.name, stream).start()
 
-    def __checkServiceContainer(self, service):
+    def checkServiceContainer(self, service):
         if service.status != Status.STARTED:
             log.warning("Cannot check container %s (%s) because not STARTED.", service.name, service.status)
             return
@@ -157,10 +96,10 @@ class RunModel(object):
             else:
                 service.status = Status.STARTED
                 console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
-        except (NotFound) as e:
-            service.status = Status.STARTED
+        except (NotFound):
+            console_output.print("Service {} not found.", service.name)
 
-    def __stopServiceContainer(self, service):
+    def stopServiceContainer(self, service):
         if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.READY,
                                   Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED, Status.STOPPED]:
             log.warning("Cannot stop container %s (%s) because not stoppable.", service.name, service.status)
@@ -175,7 +114,7 @@ class RunModel(object):
             service.status = Status.STOP_IN_PROGRESS
             service.container.stop()
 
-    def __removeServiceContainer(self, service):
+    def removeServiceContainer(self, service):
         if service.container == None:
             return
 
@@ -186,47 +125,3 @@ class RunModel(object):
         except (NotFound) as e:
             service.container = None
             service.status = Status.DESTROYED
-
-    def __onTick(self):
-        if self.services["driver"].status in [Status.STOPPED, Status.DESTROYED]:
-            self.done = True
-            return
-
-        (actions, containersLeft) = self.__get_actions()
-        if len(actions) == 0 and not containersLeft:
-            self.done = True
-
-        for action in actions:
-            action()
-
-    def __onContainerCreated(self, event):
-        containerId = event.data["id"]
-        services = [service for name, service in self.services.items() if
-                    service.container is not None and service.container.id == containerId]
-        for service in services:
-            service.status = Status.CREATED
-            console_output.print("Service {} created.", service.name)
-
-    def __onContainerStarted(self, event):
-        containerId = event.data["id"]
-        services = [service for name, service in self.services.items() if
-                    service.container is not None and service.container.id == containerId]
-        for service in services:
-            if "readycheck" not in service.config.keys():
-                service.status = Status.READY
-            else:
-                service.status = Status.STARTED
-            console_output.print("Service {} started.", service.name)
-
-    def __onContainerDied(self, event):
-        containerId = event.data["id"]
-        services = [service for name, service in self.services.items() if
-                    service.container is not None and service.container.id == containerId]
-        for service in services:
-            service.status = Status.STOPPED
-            exitCodeStr = event.data.get("Actor", {}).get("Attributes", {}).get("exitCode", None)
-            try:
-                service.exitCode = int(exitCodeStr)
-            except (TypeError):
-                service.exitCode = 127
-            console_output.print("Service {} stopped (exit code={}).", service.name, service.exitCode)

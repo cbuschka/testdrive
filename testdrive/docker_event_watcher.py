@@ -29,9 +29,7 @@ class DockerEventWatcher(object):
 
             event = self.__toEvent(dockerEvent)
             if event is not None:
-                # log.info("Event from docker: %s", event)
                 self.queue.put(event)
-
 
     def __toEvent(self, event):
         if event["Type"] == 'container' and event["Action"] == 'create':
@@ -43,7 +41,6 @@ class DockerEventWatcher(object):
         elif event["Type"] == 'container' and event["Action"] == 'die':
             return Event(type='containerDied', data=event)
         else:
-            # log.info("Docker event ignored: %s", event)
             pass
 
     def stop(self):
