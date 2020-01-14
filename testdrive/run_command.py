@@ -24,6 +24,8 @@ class RunCommand:
         config = Config.from_file("testdrive.yml")
 
         try:
+            console_output.print("Test session id: {}", self.context.testSessionId)
+
             self.__start()
             self.context.add_signal_handler(self.__shutdown)
 

@@ -1,4 +1,5 @@
 import logging
+import random
 import signal
 
 import docker
@@ -20,8 +21,9 @@ def handle_signal(signum, frame):
 
 
 class Context:
-    def __init__(self, args=None):
+    def __init__(self, testSessionId=None, args=None):
         self.args = args or sys.argv[1:]
+        self.testSessionId = testSessionId or hex(random.getrandbits(128))[2:]
         self.setup_logging()
         self.docker_client = docker.from_env()
 
