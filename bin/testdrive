@@ -7,7 +7,4 @@ if [ -d "${SCRIPT_DIR}/../testdrive" ]; then
     export PYTHONPATH=${SCRIPT_DIR}/../testdrive:${PYTHONPATH}
 fi
 
-python3 -B -m testdrive
-EXIT_CODE=$?
-
-exit ${EXIT_CODE}
+exec python3 -B -m testdrive
