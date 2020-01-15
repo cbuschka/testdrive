@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 class RunCommand:
     def __init__(self):
-        self.context = Context()
+        self.context = Context(verbose=False)
         self.run_model = RunModel(self.context)
         self.runner = Runner(self.context, self.run_model)
         self.event_timer = EventTimer(queue=self.runner.eventQueue)
@@ -43,7 +43,6 @@ class RunCommand:
         self.event_watcher.start()
 
     def __shutdown(self):
-        console_output.print("Shutting down...")
         self.runner.shutdown()
 
     def __add_services_from(self, services):

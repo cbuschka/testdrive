@@ -1,11 +1,9 @@
 import logging
-import random
 import signal
 
 import docker
+import random_name
 import sys
-
-from testdrive.console_output import console_output
 
 signal_handlers = []
 SIGNAL_NAMES = {
@@ -15,20 +13,27 @@ SIGNAL_NAMES = {
 
 
 def handle_signal(signum, frame):
-    console_output.print("Received signal {}...", SIGNAL_NAMES.get(signum, signum))
+    # console_output.print("Received signal {}...", SIGNAL_NAMES.get(signum, signum))
     for signal_handler in signal_handlers:
         signal_handler()
 
 
 class Context:
-    def __init__(self, testSessionId=None, args=None):
+    def __init__(self, testSessionId=None, args=None, verbose=False):
         self.args = args or sys.argv[1:]
-        self.testSessionId = testSessionId or hex(random.getrandbits(128))[2:]
+        self.testSessionId = testSessionId or random_name.generate_name(separator='_')
         self.setup_logging()
         self.docker_client = docker.from_env()
+        self.sequence = 1
+        self.verbose = verbose
 
         for curr_signal in [signal.SIGTERM, signal.SIGINT]:
             signal.signal(curr_signal, handle_signal)
+
+    def next_seqnum(self):
+        value = self.sequence
+        self.sequence += 1
+        return value
 
     def setup_logging(self):
         logging.basicConfig(level=logging.INFO, stream=sys.stderr)

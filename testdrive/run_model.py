@@ -1,8 +1,10 @@
 import logging
 from enum import Enum
 
+import docker
 from docker.errors import NotFound
 
+from testdrive.epoch_time import now
 from testdrive.log_writer import LogWriter
 
 log = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ class DriverOrService(object):
         self.status = Status.NEW
         self.container = None
         self.exitCode = None
+        self.timeout = 0
 
 
 class RunModel(object):
@@ -65,7 +68,15 @@ class RunModel(object):
         image = service.config["image"]
         healthcheck = service.config.get("healthcheck", {"test": []})
         command = service.config.get("command", None)
-        service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck)
+        service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck,
+                                                            name="{}_{}_{}".format(self.context.testSessionId,
+                                                                                   service.name,
+                                                                                   self.context.next_seqnum()),
+                                                            auto_remove=True,
+                                                            tty=False, detach=True, oom_kill_disable=False,
+                                                            labels={}, init=False, cap_add=[], devices=[],
+                                                            domainname=None, entrypoint=None, environment={},
+                                                            extra_hosts={}, hostname=None, links={}, mounts=[])
 
     def startServiceContainer(self, service):
         if service.status != Status.CREATED:
@@ -74,19 +85,22 @@ class RunModel(object):
 
         console_output.print("Starting service {}...", service.name)
         service.status = Status.START_IN_PROGRESS
+        service.timeout = now() + 10_000
         service.container.start()
 
         stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
         LogWriter(service.name, stream).start()
 
-    def checkServiceContainer(self, service):
+    def startHealthcheckForServiceContainer(self, service):
         if service.status != Status.STARTED:
             log.warning("Cannot check container %s (%s) because not STARTED.", service.name, service.status)
             return
 
+        service.status = Status.HEALTHCHECK_IN_PROGRESS
+
+    def checkServiceContainer(self, service):
         console_output.print("Checking service {}...", service.name)
         try:
-            service.status = Status.HEALTHCHECK_IN_PROGRESS
             readycheck = service.config["readycheck"]
             (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
                                                             user=readycheck.get("user", None))
@@ -96,23 +110,43 @@ class RunModel(object):
             else:
                 service.status = Status.STARTED
                 console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
-        except (NotFound):
+        except (docker.errors.NotFound):
             console_output.print("Service {} not found.", service.name)
 
     def stopServiceContainer(self, service):
         if service.status not in [Status.STARTED, Status.START_IN_PROGRESS, Status.READY,
-                                  Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED, Status.STOPPED]:
+                                  Status.HEALTHCHECK_IN_PROGRESS, Status.CREATED,
+                                  Status.CREATE_IN_PROGRESS,
+                                  Status.STOPPED, Status.STOP_IN_PROGRESS]:
             log.warning("Cannot stop container %s (%s) because not stoppable.", service.name, service.status)
             return
 
-        if service.status == Status.CREATED:
+        if service.status == Status.CREATED or service.status == Status.CREATE_IN_PROGRESS:
             service.status = Status.STOPPED
-        elif service.status == Status.STOPPED:
+        elif service.status == Status.STOPPED or service.status == Status.STOP_IN_PROGRESS:
             pass
         else:
-            console_output.print("Stopping service {}...", service.name)
+            try:
+                console_output.print("Stopping service {}...", service.name)
+                service.status = Status.STOP_IN_PROGRESS
+                service.timeout = now() + 10_000
+                service.container.stop()
+            except (docker.errors.NotFound):
+                service.container = None
+                service.status = Status.DESTROYED
+
+    def killServiceContainer(self, service):
+        if service.container == None:
+            return
+
+        console_output.print("Killing service {}...", service.name)
+        try:
             service.status = Status.STOP_IN_PROGRESS
-            service.container.stop()
+            service.timeout = now() + 3_000
+            service.container.kill()
+        except (docker.errors.NotFound):
+            service.container = None
+            service.status = Status.DESTROYED
 
     def removeServiceContainer(self, service):
         if service.container == None:
@@ -122,6 +156,9 @@ class RunModel(object):
         try:
             service.status = Status.DESTROY_IN_PROGRESS
             service.container.remove(force=True, v=True)
-        except (NotFound) as e:
+        except (docker.errors.NotFound):
             service.container = None
             service.status = Status.DESTROYED
+        except (docker.errors.APIError) as e:
+            if e.status_code != 409:
+                raise e

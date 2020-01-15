@@ -37,10 +37,25 @@ class DockerEventWatcher(object):
         elif event["Type"] == 'container' and event["Action"] == 'start':
             return Event(type='containerStarted', data=event)
         elif event["Type"] == 'container' and event["Action"] == 'kill':
-            return Event(type='containerDied', data=event)
+            return Event(type='containerStopping', data=event)
         elif event["Type"] == 'container' and event["Action"] == 'die':
-            return Event(type='containerDied', data=event)
+            return Event(type='containerStopped', data=event)
+        elif event["Type"] == 'container' and event["Action"] == 'stop':
+            return Event(type='containerStopping', data=event)
+        elif event["Type"] == 'container' and event["Action"] == 'destroy':
+            return Event(type='containerDestroyed', data=event)
+        elif event["Type"] == 'container' and event["Action"].startswith('exec_create'):
+            pass
+        elif event["Type"] == 'container' and event["Action"].startswith('exec_start'):
+            pass
+        elif event["Type"] == 'container' and event["Action"].startswith('exec_die'):
+            pass
+        elif event["Type"] == 'network':
+            pass
+        elif event["Type"] == 'volume':
+            pass
         else:
+            log.warning("Event %s ignored.", event)
             pass
 
     def stop(self):
