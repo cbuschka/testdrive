@@ -2,7 +2,8 @@
 
 block_cipher = None
 
-a = Analysis(['bin/testdrive'],
+a = Analysis(['testdrive/__main__.py'],
+             datas=[ ('testdrive/config/config_schema_v1.0.json', 'testdrive/config/') ],
              pathex=['.'],
              hiddenimports=[],
              hookspath=None,
