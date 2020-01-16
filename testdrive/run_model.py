@@ -26,9 +26,10 @@ class Status(Enum):
     DESTROYED = 11
 
 
-class DriverOrService(object):
-    def __init__(self, name, config, seqNum):
+class Resource(object):
+    def __init__(self, type, name, config, seqNum):
         self.seqNum = seqNum
+        self.type = type
         self.name = name
         self.config = config
         self.status = Status.NEW
@@ -43,10 +44,10 @@ class RunModel(object):
         self.services = {}
 
     def set_driver(self, config):
-        self.services["driver"] = DriverOrService("driver", config, seqNum=self.context.next_seqnum())
+        self.services["driver"] = Resource("container", "driver", config, seqNum=self.context.next_seqnum())
 
     def add_service(self, name, config):
-        self.services[name] = DriverOrService(name, config, seqNum=self.context.next_seqnum())
+        self.services[name] = Resource("container", name, config, seqNum=self.context.next_seqnum())
 
     def canStart(self, service):
         if service.status != Status.CREATED:
@@ -64,20 +65,23 @@ class RunModel(object):
             return
 
         console_output.print_verbose("Creating service {}...", service.name)
-        docker_client = self.context.docker_client
         service.status = Status.CREATE_IN_PROGRESS
         image = service.config["image"]
         healthcheck = service.config.get("healthcheck", {"test": []})
         command = service.config.get("command", None)
-        service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck,
-                                                            name="{}_{}_{}".format(self.context.testSessionId,
-                                                                                   service.name,
-                                                                                   service.seqNum),
-                                                            auto_remove=True,
-                                                            tty=False, detach=True, oom_kill_disable=False,
-                                                            labels={}, init=False, cap_add=[], devices=[],
-                                                            domainname=None, entrypoint=None, environment={},
-                                                            extra_hosts={}, hostname=None, links={}, mounts=[])
+        service.container = self.context.docker_client.containers.create(image=image, command=command,
+                                                                         healthcheck=healthcheck,
+                                                                         name="{}_{}_{}".format(
+                                                                             self.context.testSessionId,
+                                                                             service.name,
+                                                                             service.seqNum),
+                                                                         auto_remove=True,
+                                                                         tty=False, detach=True, oom_kill_disable=False,
+                                                                         labels={}, init=False, cap_add=[], devices=[],
+                                                                         domainname=None, entrypoint=None,
+                                                                         environment={},
+                                                                         extra_hosts={}, hostname=None, links={},
+                                                                         mounts=[])
 
     def startServiceContainer(self, service):
         if service.status != Status.CREATED:
