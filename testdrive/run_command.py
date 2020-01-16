@@ -53,7 +53,7 @@ class RunCommand:
 
     def __configure(self):
         parser = OptionParser(prog="testdrive",
-                              description="A test driver for docker container based integration tests.",
+                              description="Test driver for docker container based integration tests.",
                               version="devel",
                               epilog="For more information visit https://github.io/cbuschka/testdrive")
         parser.add_option("-v", "--verbose",

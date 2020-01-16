@@ -1,6 +1,6 @@
 # Testdrive
 
-### Multi-docker-container-orchestration optimized for integration tests
+### Test driver for docker container based integration tests.
 
 ## Setup dev
 
