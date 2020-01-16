@@ -27,7 +27,8 @@ class Status(Enum):
 
 
 class DriverOrService(object):
-    def __init__(self, name, config):
+    def __init__(self, name, config, seqNum):
+        self.seqNum = seqNum
         self.name = name
         self.config = config
         self.status = Status.NEW
@@ -42,10 +43,10 @@ class RunModel(object):
         self.services = {}
 
     def set_driver(self, config):
-        self.services["driver"] = DriverOrService("driver", config)
+        self.services["driver"] = DriverOrService("driver", config, seqNum=self.context.next_seqnum())
 
     def add_service(self, name, config):
-        self.services[name] = DriverOrService(name, config)
+        self.services[name] = DriverOrService(name, config, seqNum=self.context.next_seqnum())
 
     def canStart(self, service):
         if service.status != Status.CREATED:
@@ -71,7 +72,7 @@ class RunModel(object):
         service.container = docker_client.containers.create(image=image, command=command, healthcheck=healthcheck,
                                                             name="{}_{}_{}".format(self.context.testSessionId,
                                                                                    service.name,
-                                                                                   self.context.next_seqnum()),
+                                                                                   service.seqNum),
                                                             auto_remove=True,
                                                             tty=False, detach=True, oom_kill_disable=False,
                                                             labels={}, init=False, cap_add=[], devices=[],
@@ -89,7 +90,7 @@ class RunModel(object):
         service.container.start()
 
         stream = service.container.logs(stdout=True, stderr=True, stream=True, follow=True)
-        LogWriter(service.name, stream).start()
+        LogWriter(service.name, stream, color=service.seqNum).start()
 
     def startHealthcheckForServiceContainer(self, service):
         if service.status != Status.STARTED:

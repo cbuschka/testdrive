@@ -25,7 +25,7 @@ class Context:
                                                                                               random_name.ANIMALS])
         self.setup_logging()
         self.docker_client = docker.from_env()
-        self.sequence = 1
+        self.sequence = 0
         self.verbose = verbose
 
         for curr_signal in [signal.SIGTERM, signal.SIGINT]:

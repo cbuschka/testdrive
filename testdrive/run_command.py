@@ -58,10 +58,14 @@ class RunCommand:
                               epilog="For more information visit https://github.io/cbuschka/testdrive")
         parser.add_option("-v", "--verbose",
                           action="store_true", dest="verbose", default=False,
-                          help="verbose output")
+                          help="verbose output, default not verbose")
+        parser.add_option("--no-color",
+                          action="store_false", dest="colorize", default=True,
+                          help="colorize output, default enabled")
         (options, args) = parser.parse_args()
 
         if len(args) > 0:
-            raise ValueError("No args supported for now.")
+            log.warning("Args {} ignored.", args)
 
         console_output.verbose = options.verbose
+        console_output.colorize = options.colorize

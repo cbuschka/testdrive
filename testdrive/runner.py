@@ -52,7 +52,7 @@ class Runner(object):
             elif event.type in ["containerDestroyed"]:
                 self.__onContainerDestroyed(event)
             else:
-                log.warning("Event %s ignored.", event)
+                log.warning("Unknown event %s ignored.", event)
                 pass
 
             self.__onTick()
@@ -61,10 +61,10 @@ class Runner(object):
 
     def shutdown(self):
         if self.phase == Phase.SHUTDOWN:
-            console_output.print("Already shutting down. Please be patient...")
+            console_output.print_important("Already shutting down. Please be patient...")
             return
 
-        console_output.print("Shutting down...")
+        console_output.print_important("Shutting down...")
         self.phase = Phase.SHUTDOWN
         services = [service for name, service in self.model.services.items()
                     if service.container != None

@@ -4,7 +4,8 @@ from testdrive.console_output import console_output
 
 
 class LogWriter(object):
-    def __init__(self, name, stream):
+    def __init__(self, name, stream, color):
+        self.color = color
         self.name = name
         self.thread = None
         self.stream = stream
@@ -19,7 +20,7 @@ class LogWriter(object):
 
     def __read_logs(self):
         for line in self.stream:
-            console_output.print("[{}] {}", self.name, line.decode('unicode_escape').strip())
+            console_output.print("[{}] {}", self.name, line.decode('unicode_escape').strip(), color=self.color)
 
     def stop(self):
         if self.thread is None:
