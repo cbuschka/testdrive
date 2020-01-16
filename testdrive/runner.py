@@ -85,8 +85,8 @@ class Runner(object):
             if service.status == Status.NEW:
                 actions.append(Callable(self.model.createServiceContainer, service))
             elif service.status == Status.CREATE_IN_PROGRESS:
-                actions.append(Callable(console_output.print, "Waiting for {} to be created...".format(service.name),
-                                        skip=not self.context.verbose))
+                actions.append(
+                    Callable(console_output.print_verbose, "Waiting for {} to be created...".format(service.name)))
             elif service.status == Status.CREATED:
                 if self.model.canStart(service):
                     actions.append(Callable(self.model.startServiceContainer, service))
@@ -141,19 +141,17 @@ class Runner(object):
                     actions.append(Callable(self.model.killServiceContainer, service))
                 else:
                     actions.append(
-                        Callable(console_output.print, "Waiting for {} to be stopped...".format(service.name),
-                                 skip=not self.context.verbose))
+                        Callable(console_output.print_verbose, "Waiting for {} to be stopped...".format(service.name)))
             elif service.status == Status.STOPPED:
                 actions.append(Callable(self.model.removeServiceContainer, service))
             elif service.status == Status.DESTROY_IN_PROGRESS:
                 if now() > service.timeout:
                     actions.append(
-                        Callable(console_output.print, "Destroying {} delayed...".format(service.name),
-                                 skip=not self.context.verbose))
+                        Callable(console_output.print_verbose, "Destroying {} delayed...".format(service.name)))
                 else:
                     actions.append(
-                        Callable(console_output.print, "Waiting for {} to be destroyed...".format(service.name),
-                                 skip=not self.context.verbose))
+                        Callable(console_output.print_verbose,
+                                 "Waiting for {} to be destroyed...".format(service.name)))
             elif service.status == Status.DESTROYED:
                 pass
             else:
@@ -175,7 +173,7 @@ class Runner(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.CREATED
-            console_output.print("Service {} created.", service.name)
+            console_output.print_verbose("Service {} created.", service.name)
 
     def __onContainerStarted(self, event):
         containerId = event.data["id"]
@@ -216,4 +214,4 @@ class Runner(object):
                     service.container is not None and service.container.id == containerId]
         for service in services:
             service.status = Status.DESTROYED
-            console_output.print("Service {} destroyed.", service.name)
+            console_output.print_verbose("Service {} destroyed.", service.name)

@@ -62,7 +62,7 @@ class RunModel(object):
             log.warning("Cannot create container %s (%s) because not NEW.", service.name, service.status)
             return
 
-        console_output.print("Creating service {}...", service.name)
+        console_output.print_verbose("Creating service {}...", service.name)
         docker_client = self.context.docker_client
         service.status = Status.CREATE_IN_PROGRESS
         image = service.config["image"]
@@ -80,10 +80,10 @@ class RunModel(object):
 
     def startServiceContainer(self, service):
         if service.status != Status.CREATED:
-            log.warning("Cannot create container %s (%s) because not CREATED.", service.name, service.status)
+            log.warning("Cannot start container %s (%s) because not CREATED.", service.name, service.status)
             return
 
-        console_output.print("Starting service {}...", service.name)
+        console_output.print_verbose("Starting service {}...", service.name)
         service.status = Status.START_IN_PROGRESS
         service.timeout = now() + 10_000
         service.container.start()
@@ -99,17 +99,17 @@ class RunModel(object):
         service.status = Status.HEALTHCHECK_IN_PROGRESS
 
     def checkServiceContainer(self, service):
-        console_output.print("Checking service {}...", service.name)
+        console_output.print_verbose("Checking service {}...", service.name)
         try:
             readycheck = service.config["readycheck"]
             (exitCode, output) = service.container.exec_run(cmd=readycheck["command"],
                                                             user=readycheck.get("user", None))
             if exitCode == 0:
                 service.status = Status.READY
-                console_output.print("Service {} now ready.", service.name)
+                console_output.print_verbose("Service {} now ready.", service.name)
             else:
                 service.status = Status.STARTED
-                console_output.print("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
+                console_output.print_verbose("Service {} still NOT ready. (exitCode={})", service.name, exitCode)
         except (docker.errors.NotFound):
             console_output.print("Service {} not found.", service.name)
 
@@ -127,7 +127,7 @@ class RunModel(object):
             pass
         else:
             try:
-                console_output.print("Stopping service {}...", service.name)
+                console_output.print_verbose("Stopping service {}...", service.name)
                 service.status = Status.STOP_IN_PROGRESS
                 service.timeout = now() + 10_000
                 service.container.stop()

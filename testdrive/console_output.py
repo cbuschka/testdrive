@@ -4,6 +4,9 @@ import time
 
 
 class ConsoleOutput(object):
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+
     def print_banner(self):
         print(" _            _      _      _           \n" +
               "| |_ ___  ___| |_ __| |_ __(_)_   _____ \n" +
@@ -11,6 +14,10 @@ class ConsoleOutput(object):
               "| ||  __/\\__ \\ || (_| | |  | |\\ V /  __/\n" +
               " \\__\\___||___/\\__\\__,_|_|  |_| \\_/ \\___|\n" +
               "                                        ", flush=True)
+
+    def print_verbose(self, s, *args, trim=True):
+        if self.verbose:
+            self.print(s, *args, trim)
 
     def print(self, s, *args, trim=True):
         ts = time.time()

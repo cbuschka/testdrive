@@ -20,7 +20,7 @@ def handle_signal(signum, frame):
 
 class Context:
     def __init__(self, testSessionId=None, args=None, verbose=False):
-        self.args = args or sys.argv[1:]
+        self.args = args
         self.testSessionId = testSessionId or random_name.generate_name(separator='_')
         self.setup_logging()
         self.docker_client = docker.from_env()

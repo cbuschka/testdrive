@@ -1,9 +1,9 @@
 import io
-
-import yaml
 import json
 import os
+
 import jsonschema
+import yaml
 
 
 def load_schema():

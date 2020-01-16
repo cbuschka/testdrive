@@ -7,4 +7,4 @@ if [ -d "${SCRIPT_DIR}/../testdrive" ]; then
     export PYTHONPATH=${SCRIPT_DIR}/../testdrive:${PYTHONPATH}
 fi
 
-exec python3 -B -m testdrive
+exec python3 -B -m testdrive $*

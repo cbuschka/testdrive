@@ -1,4 +1,5 @@
 import logging
+from optparse import OptionParser
 
 from testdrive.config.config import Config
 from testdrive.console_output import console_output
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 
 class RunCommand:
     def __init__(self):
-        self.context = Context(verbose=False)
+        self.context = Context()
         self.run_model = RunModel(self.context)
         self.runner = Runner(self.context, self.run_model)
         self.event_timer = EventTimer(queue=self.runner.eventQueue)
@@ -21,6 +22,7 @@ class RunCommand:
                                                 queue=self.runner.eventQueue)
 
     def run(self):
+        self.__configure()
         config = Config.from_file("testdrive.yml")
 
         try:
@@ -48,3 +50,18 @@ class RunCommand:
     def __add_services_from(self, services):
         for name, config in services.items():
             self.run_model.add_service(name, config)
+
+    def __configure(self):
+        parser = OptionParser(prog="testdrive",
+                              description="A test driver for docker container based integration tests.",
+                              version="devel",
+                              epilog="For more information visit https://github.io/cbuschka/testdrive")
+        parser.add_option("-v", "--verbose",
+                          action="store_true", dest="verbose", default=False,
+                          help="verbose output")
+        (options, args) = parser.parse_args()
+
+        if len(args) > 0:
+            raise ValueError("No args supported for now.")
+
+        console_output.verbose = options.verbose
