@@ -27,7 +27,7 @@ class Status(Enum):
 
 
 class Resource(object):
-    def __init__(self, type, name, config, seqNum):
+    def __init__(self, type, name, config, seqNum, dependencies=None):
         self.seqNum = seqNum
         self.type = type
         self.name = name
@@ -36,6 +36,9 @@ class Resource(object):
         self.container = None
         self.exitCode = None
         self.timeout = 0
+        self.dependencies = config.get("depends_on", []).copy()
+        if dependencies is not None:
+            self.dependencies.extend(dependencies)
 
     def create(self, context):
         if self.status != Status.NEW:
@@ -60,8 +63,10 @@ class Resource(object):
                                                                  devices=[],
                                                                  domainname=None, entrypoint=None,
                                                                  environment={},
-                                                                 extra_hosts={}, hostname=None, links={},
-                                                                 mounts=[])
+                                                                 extra_hosts={},
+                                                                 hostname=self.config.get("hostname", None),
+                                                                 links={},
+                                                                 mounts=self.config.get("volumes", []))
 
     def start(self, context):
         if self.status != Status.CREATED:

@@ -1,4 +1,5 @@
 import logging
+import os
 from optparse import OptionParser
 
 from testdrive.config.config import Config

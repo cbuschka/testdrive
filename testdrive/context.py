@@ -1,5 +1,7 @@
 import logging
+import os
 import signal
+from os import path
 
 import docker
 import random_name
@@ -19,7 +21,7 @@ def handle_signal(signum, frame):
 
 
 class Context:
-    def __init__(self, testSessionId=None, args=None, verbose=False):
+    def __init__(self, testSessionId=None, args=None, verbose=False, workspace_path='.'):
         self.args = args
         self.testSessionId = testSessionId or random_name.generate_name(separator='_', lists=[random_name.ADJECTIVES,
                                                                                               random_name.ANIMALS])
@@ -27,6 +29,7 @@ class Context:
         self.docker_client = docker.from_env()
         self.sequence = 0
         self.verbose = verbose
+        self.workspace_path = path.abspath(path.join(os.getcwd(), workspace_path))
 
         for curr_signal in [signal.SIGTERM, signal.SIGINT]:
             signal.signal(curr_signal, handle_signal)
