@@ -61,6 +61,7 @@ class Runner(object):
 
     def shutdown(self):
         if self.phase == Phase.SHUTDOWN:
+            console_output.print("Already shutting down. Please be patient...")
             return
 
         console_output.print("Shutting down...")
