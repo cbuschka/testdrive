@@ -27,7 +27,7 @@ class Status(Enum):
 
 
 class Resource(object):
-    def __init__(self, type, name, config, seqNum, dependencies=None):
+    def __init__(self, type, name, config, seqNum, testSessionId, dependencies=None):
         self.seqNum = seqNum
         self.type = type
         self.name = name
@@ -39,6 +39,7 @@ class Resource(object):
         self.dependencies = config.get("depends_on", []).copy()
         if dependencies is not None:
             self.dependencies.extend(dependencies)
+        self.container_name = "{}_{}_{}".format(testSessionId, self.name, self.seqNum)
 
     def create(self, context):
         if self.status != Status.NEW:
@@ -52,10 +53,7 @@ class Resource(object):
         command = self.config.get("command", None)
         self.container = context.docker_client.containers.create(image=image, command=command,
                                                                  healthcheck=healthcheck,
-                                                                 name="{}_{}_{}".format(
-                                                                     context.testSessionId,
-                                                                     self.name,
-                                                                     self.seqNum),
+                                                                 name=self.container_name,
                                                                  auto_remove=True,
                                                                  tty=False, detach=True,
                                                                  oom_kill_disable=False,
@@ -66,7 +64,8 @@ class Resource(object):
                                                                  extra_hosts={},
                                                                  hostname=self.config.get("hostname", None),
                                                                  links={},
-                                                                 mounts=self.config.get("volumes", []))
+                                                                 mounts=self.config.get("volumes", []),
+                                                                 volumes_from=self.config.get("volumes_from", []), )
 
     def start(self, context):
         if self.status != Status.CREATED:

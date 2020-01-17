@@ -14,15 +14,24 @@ class RunModel(object):
                                                    "Type": "bind",
                                                    "ReadOnly": False
                                                }]},
+                                              testSessionId=context.testSessionId,
                                               seqNum=context.next_seqnum(),
                                               dependencies=[])
 
     def set_driver(self, config):
+        workspace_service = self.services["workspace"]
+        config["volumes_from"] = config.get("volumes_from", [])
+        config["volumes_from"].append(workspace_service.container_name)
         self.services["driver"] = Resource("container", "driver", config, seqNum=self.context.next_seqnum(),
+                                           testSessionId=self.context.testSessionId,
                                            dependencies=["workspace"])
 
     def add_service(self, name, config):
+        workspace_service = self.services["workspace"]
+        config["volumes_from"] = config.get("volumes_from", [])
+        config["volumes_from"].append(workspace_service.container_name)
         self.services[name] = Resource("container", name, config, seqNum=self.context.next_seqnum(),
+                                       testSessionId=self.context.testSessionId,
                                        dependencies=["workspace"])
 
     def canStart(self, service):
