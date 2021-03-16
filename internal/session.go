@@ -5,11 +5,12 @@ import "os"
 type Session struct {
 	id    string
 	model *Model
+	eventQueue chan Event
 }
 
 func NewSession() *Session {
 	model := NewModel()
-	session := Session{id: "1", model: model}
+	session := Session{id: "1", model: model, eventQueue: make(chan Event, 100)}
 	return &session
 }
 
