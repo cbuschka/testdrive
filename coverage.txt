@@ -1,1 +1,17 @@
 mode: atomic
+github.com/cbuschka/testdrive/internal/session.go:10.28,14.2 3 0
+github.com/cbuschka/testdrive/internal/session.go:16.55,18.16 2 0
+github.com/cbuschka/testdrive/internal/session.go:21.2,24.16 3 0
+github.com/cbuschka/testdrive/internal/session.go:28.2,29.16 2 0
+github.com/cbuschka/testdrive/internal/session.go:33.2,33.12 1 0
+github.com/cbuschka/testdrive/internal/session.go:18.16,20.3 1 0
+github.com/cbuschka/testdrive/internal/session.go:24.16,26.3 1 0
+github.com/cbuschka/testdrive/internal/session.go:29.16,31.3 1 0
+github.com/cbuschka/testdrive/internal/config.go:20.52,23.16 3 1
+github.com/cbuschka/testdrive/internal/config.go:26.2,27.16 2 1
+github.com/cbuschka/testdrive/internal/config.go:30.2,30.21 1 1
+github.com/cbuschka/testdrive/internal/config.go:23.16,25.3 1 0
+github.com/cbuschka/testdrive/internal/config.go:27.16,29.3 1 0
+github.com/cbuschka/testdrive/internal/loader.go:3.58,5.2 1 0
+github.com/cbuschka/testdrive/internal/model.go:6.24,8.2 1 0
+github.com/cbuschka/testdrive/internal/runner.go:3.44,5.2 1 0
