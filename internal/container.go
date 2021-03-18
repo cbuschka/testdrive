@@ -16,10 +16,16 @@ const (
 	Failed     = "Failed"
 )
 
-type Task struct {
-	name         string
-	status       TaskStatus
-	config       *TaskConfig
-	containerId  string
-	taskType     string
+type Container struct {
+	name          string
+	status        TaskStatus
+	config        *ContainerConfig
+	containerId   string
+	containerType string
 }
+
+
+const (
+	ContainerType_Service = "service"
+	ContainerType_Task = "task"
+)

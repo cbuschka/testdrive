@@ -10,7 +10,7 @@ func (phase *StartupPhase) String() string {
 
 func (phase *StartupPhase) postHandle() (Phase, error) {
 
-	err := phase.session.createContainersForCreatableTasks("service")
+	err := phase.session.createContainersForCreatableContainers("service")
 	if err != nil {
 		return nil, err
 	}

@@ -8,12 +8,12 @@ import (
 )
 
 type Config struct {
-	Version  string                 `json:"version"`
-	Services map[string]*TaskConfig `json:"services"`
-	Tasks    map[string]*TaskConfig `json:"tasks"`
+	Version  string                      `json:"version"`
+	Services map[string]*ContainerConfig `json:"services"`
+	Tasks    map[string]*ContainerConfig `json:"tasks"`
 }
 
-type TaskConfig struct {
+type ContainerConfig struct {
 	Image        string   `json:"image"`
 	Command      []string `json:"command"`
 	Dependencies []string `json:"depends_on"`
@@ -44,11 +44,11 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 
 func cleanConfig(c *Config) {
 	for name, task := range c.Tasks {
-		cleanTaskConfig(name, task)
+		cleanContainerConfig(name, task)
 	}
 }
 
-func cleanTaskConfig(name string, task *TaskConfig) {
+func cleanContainerConfig(name string, task *ContainerConfig) {
 
 	cleanedDependencies := make([]string, 0)
 	for _, dependency := range task.Dependencies {
