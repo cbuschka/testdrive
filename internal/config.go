@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	Version  string          `json:"version"`
-	Services map[string]Task `json:"services"`
-	Tasks    map[string]Task `json:"tasks"`
+	Version  string                `json:"version"`
+	Services map[string]TaskConfig `json:"services"`
+	Tasks    map[string]TaskConfig `json:"tasks"`
 }
 
-type Task struct {
+type TaskConfig struct {
 	Image        string   `json:"image"`
 	Dependencies []string `json:"depends_on"`
+	Healthcheck  interface{}
 }
 
 func LoadConfig(reader io.Reader) (*Config, error) {

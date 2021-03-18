@@ -1,9 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"github.com/cbuschka/testdrive/internal"
-	)
+	"os"
+)
 
 func main() {
-	_, _ = internal.Run()
+	exitCode, err := internal.Run()
+	if err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
+
+	os.Exit(exitCode)
 }

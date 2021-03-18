@@ -3,15 +3,23 @@ package internal
 import "os"
 
 type Session struct {
-	id    string
-	model *Model
-	eventQueue chan Event
+	id               string
+	config           *Config
+	model            *Model
+	eventQueue       chan Event
+	phase            Phase
+	containerRuntime ContainerRuntime
 }
 
-func NewSession() *Session {
+func NewSession() (*Session, error) {
 	model := NewModel()
-	session := Session{id: "1", model: model, eventQueue: make(chan Event, 100)}
-	return &session
+	docker, err := NewDocker()
+	if err != nil {
+		return nil, err
+	}
+	session := Session{id: "1", config: nil, model: model, eventQueue: make(chan Event, 100),
+		phase: Running, containerRuntime: ContainerRuntime(docker)}
+	return &session, nil
 }
 
 func (session *Session) LoadConfig(file string) error {
@@ -26,10 +34,7 @@ func (session *Session) LoadConfig(file string) error {
 		return err
 	}
 
-	err = ApplyConfig(session, config)
-	if err != nil {
-		return err
-	}
+	session.config = config
 
 	return nil
 }
