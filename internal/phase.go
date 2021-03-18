@@ -1,7 +1,7 @@
 package internal
 
 type Phase interface {
-	postHandle(event *Event) (Phase, error)
+	postHandle() (Phase, error)
 	isDone() bool
 	String() string
 }

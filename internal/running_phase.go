@@ -8,7 +8,7 @@ func (phase *RunningPhase) String() string {
 	return "PHASE_RUNNING"
 }
 
-func (phase *RunningPhase) postHandle(event *Event) (Phase, error) {
+func (phase *RunningPhase) postHandle() (Phase, error) {
 
 	err := phase.session.createContainersForCreatableTasks("task")
 	if err != nil {

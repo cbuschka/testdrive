@@ -8,7 +8,7 @@ func (phase *ShutdownPhase) String() string {
 	return "PHASE_SHUTDOWN"
 }
 
-func (phase *ShutdownPhase) postHandle(event *Event) (Phase, error) {
+func (phase *ShutdownPhase) postHandle() (Phase, error) {
 
 	err := phase.session.stopRunningContainers()
 	if err != nil {

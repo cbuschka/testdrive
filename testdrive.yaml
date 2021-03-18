@@ -15,7 +15,7 @@ tasks:
 
   task1:
     image: ubuntu:latest
-    command: [ "echo", "huhu from task1" ]
+    command: [ "bash", "-c", "for i in 1 2 3 4 5; do echo $i; sleep 1; done" ]
     depends_on:
       - task0
 

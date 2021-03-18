@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -55,6 +56,13 @@ func tick(eventQueue chan Event) {
 	}
 }
 
+func handleSigint(signalChannel chan os.Signal, eventChannel chan Event) {
+	for _ = range signalChannel {
+		log.Printf("SIGINT received.\n")
+		eventChannel <- nil
+	}
+}
+
 func (session *Session) Run() (int, error) {
 
 	config := session.config
@@ -68,6 +76,10 @@ func (session *Session) Run() (int, error) {
 		return -1, err
 	}
 
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, os.Interrupt)
+	go handleSigint(signalChannel, session.eventQueue)
+
 	go tick(session.eventQueue)
 
 	go session.containerRuntime.AddEventListener(context.TODO(), func(event ContainerEvent) {
@@ -80,16 +92,18 @@ func (session *Session) Run() (int, error) {
 		log.Printf("Phase is %s, event is %v.\n", session.phase.String(), event)
 
 		if event == nil {
-			break
+			session.phase = Phase(&ShutdownPhase{session: session})
 		}
 
 		if session.phase.isDone() {
 			break
 		}
 
-		session.handleEvent(event)
+		if event != nil {
+			session.handleEvent(event)
+		}
 
-		session.phase, err = session.phase.postHandle(&event)
+		session.phase, err = session.phase.postHandle()
 		if err != nil {
 			return -1, err
 		}

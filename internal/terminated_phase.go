@@ -8,7 +8,7 @@ func (phase *TerminatedPhase) String() string {
 	return "PHASE_TERMINATED"
 }
 
-func (phase *TerminatedPhase) postHandle(event *Event) (Phase, error) {
+func (phase *TerminatedPhase) postHandle() (Phase, error) {
 
 	return Phase(phase), nil
 }
