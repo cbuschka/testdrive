@@ -24,8 +24,7 @@ type Container struct {
 	containerType string
 }
 
-
 const (
 	ContainerType_Service = "service"
-	ContainerType_Task = "task"
+	ContainerType_Task    = "task"
 )

@@ -69,8 +69,7 @@ func (docker *Docker) CreateContainer(containerName string, image string, cmd []
 
 func (docker *Docker) StartContainer(containerId string) error {
 
-	err := docker.client.ContainerStart(docker.context, containerId, types.ContainerStartOptions{
-	})
+	err := docker.client.ContainerStart(docker.context, containerId, types.ContainerStartOptions{})
 	if err != nil {
 		return err
 	}

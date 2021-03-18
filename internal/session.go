@@ -57,7 +57,7 @@ func tick(eventQueue chan Event) {
 }
 
 func handleSigint(signalChannel chan os.Signal, eventChannel chan Event) {
-	for _ = range signalChannel {
+	for range signalChannel {
 		log.Printf("SIGINT received.\n")
 		eventChannel <- nil
 	}
