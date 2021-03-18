@@ -1,7 +1,7 @@
 package internal
 
 import (
-	json "encoding/json"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 )
@@ -23,7 +23,13 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(bytes, &config)
+
+	jsonBytes, err := toJSON(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(jsonBytes, &config)
 	if err != nil {
 		return nil, err
 	}
