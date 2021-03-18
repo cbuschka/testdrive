@@ -22,4 +22,5 @@ type Task struct {
 	status       TaskStatus
 	config       *TaskConfig
 	containerId  string
+	taskType     string
 }

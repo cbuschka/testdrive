@@ -39,10 +39,10 @@ func (model *Model) AllDependenciesReady(task *Task) bool {
 	return true
 }
 
-func (model *Model) getCreatableTasks() []*Task {
+func (model *Model) getCreatableTasks(taskType string) []*Task {
 	createableTasks := make([]*Task, 0)
 	for _, task := range model.tasks {
-		if task.status == New && model.CanCreateTask(task) {
+		if task.status == New && task.taskType == taskType && model.CanCreateTask(task) {
 			createableTasks = append(createableTasks, task)
 		}
 	}
@@ -50,10 +50,10 @@ func (model *Model) getCreatableTasks() []*Task {
 	return createableTasks
 }
 
-func (model *Model) getStartableTasks() []*Task {
+func (model *Model) getStartableTasks(taskType string) []*Task {
 	startableTasks := make([]*Task, 0)
 	for _, task := range model.tasks {
-		if task.status == Created && model.CanStartTask(task) {
+		if task.status == Created && task.taskType == taskType && model.CanStartTask(task) {
 			startableTasks = append(startableTasks, task)
 		}
 	}
@@ -93,4 +93,14 @@ func (model *Model) TaskStarting(task *Task) {
 func (model *Model) TaskFailed(task *Task) {
 	task.status = Failed
 	log.Printf("Task %s marked as failed.\n", task.name)
+}
+
+func (model *Model) TaskStopped(task *Task) {
+	task.status = Stopped
+	log.Printf("Task %s marked as stopped.\n", task.name)
+}
+
+func (model *Model) TaskDestroyed(task *Task) {
+	task.status = Destroyed
+	log.Printf("Task %s marked as destroyed.\n", task.name)
 }

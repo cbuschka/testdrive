@@ -14,6 +14,7 @@ type Config struct {
 
 type TaskConfig struct {
 	Image        string   `json:"image"`
+	Command      []string `json:"command"`
 	Dependencies []string `json:"depends_on"`
 	Healthcheck  interface{}
 }

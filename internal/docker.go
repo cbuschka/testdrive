@@ -41,7 +41,7 @@ func NewDocker() (*Docker, error) {
 	return &Docker{client: dockerClient, context: ctx}, nil
 }
 
-func (docker *Docker) CreateContainer(containerName string, image string) (string, error) {
+func (docker *Docker) CreateContainer(containerName string, image string, cmd []string) (string, error) {
 
 	reader, err := docker.client.ImagePull(docker.context, image, types.ImagePullOptions{})
 	if err != nil {
@@ -54,6 +54,7 @@ func (docker *Docker) CreateContainer(containerName string, image string) (strin
 
 	containerConfig := container.Config{}
 	containerConfig.Image = image
+	containerConfig.Cmd = cmd
 	response, err := docker.client.ContainerCreate(docker.context, &containerConfig,
 		nil, nil, nil,
 		containerName)
@@ -66,7 +67,28 @@ func (docker *Docker) CreateContainer(containerName string, image string) (strin
 
 func (docker *Docker) StartContainer(containerId string) error {
 
-	err := docker.client.ContainerStart(docker.context, containerId, types.ContainerStartOptions{})
+	err := docker.client.ContainerStart(docker.context, containerId, types.ContainerStartOptions{
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (docker *Docker) StopContainer(containerId string) error {
+
+	err := docker.client.ContainerStop(docker.context, containerId, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (docker *Docker) DestroyContainer(containerId string) error {
+
+	err := docker.client.ContainerRemove(docker.context, containerId, types.ContainerRemoveOptions{Force: true})
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,7 @@
 package internal
 
-type Phase int
-
-const (
-	Running    = 10
-	Shutdown   = 20
-	Terminated = 50
-)
+type Phase interface {
+	postHandle(event *Event) (Phase, error)
+	isDone() bool
+	String() string
+}
