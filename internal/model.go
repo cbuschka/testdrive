@@ -26,12 +26,30 @@ func (model *Model) AddTask(task *Task) error {
 }
 
 func (model *Model) CanCreateTask(task *Task) bool {
-	return task.status == New && model.AllDependenciesReady(task)
+	return task.status == New
 }
 
 func (model *Model) AllDependenciesReady(task *Task) bool {
-	for _, dependency := range task.dependencies {
+	for _, dependency := range task.config.Dependencies {
+		if dependency == task.name {
+			log.Printf("WARNING %s contains dependency on itself.\n", task.name)
+		}
+
 		if model.tasks[dependency].status != Ready {
+			log.Printf("Dependency %s->%s not ready.\n", task.name, dependency)
+			return false
+		}
+	}
+
+	return true
+}
+
+func (model *Model) AllServiceDependenciesReadyAndAllTaskDependenciesStopped(task *Task) bool {
+	for _, dependency := range task.config.Dependencies {
+		if model.tasks[dependency].taskType == "service" && model.tasks[dependency].status != Ready {
+			return false
+		}
+		if model.tasks[dependency].taskType == "task" && model.tasks[dependency].status != Stopped {
 			return false
 		}
 	}
@@ -50,10 +68,10 @@ func (model *Model) getCreatableTasks(taskType string) []*Task {
 	return createableTasks
 }
 
-func (model *Model) getStartableTasks(taskType string) []*Task {
+func (model *Model) getStartableServices() []*Task {
 	startableTasks := make([]*Task, 0)
 	for _, task := range model.tasks {
-		if task.status == Created && task.taskType == taskType && model.CanStartTask(task) {
+		if task.status == Created && task.taskType == "service" && model.CanStartService(task) {
 			startableTasks = append(startableTasks, task)
 		}
 	}
@@ -61,8 +79,23 @@ func (model *Model) getStartableTasks(taskType string) []*Task {
 	return startableTasks
 }
 
+func (model *Model) getStartableTasks() []*Task {
+	startableTasks := make([]*Task, 0)
+	for _, task := range model.tasks {
+		if task.status == Created && task.taskType == "task" && model.CanStartTask(task) {
+			startableTasks = append(startableTasks, task)
+		}
+	}
+
+	return startableTasks
+}
+
+func (model *Model) CanStartService(task *Task) bool {
+	return task.status == Created && model.AllDependenciesReady(task)
+}
+
 func (model *Model) CanStartTask(task *Task) bool {
-	return task.status == Created && len(task.dependencies) == 0
+	return task.status == Created && model.AllServiceDependenciesReadyAndAllTaskDependenciesStopped(task)
 }
 
 func (model *Model) TaskCreating(task *Task) {

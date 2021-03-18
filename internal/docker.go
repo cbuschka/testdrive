@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -47,6 +48,7 @@ func (docker *Docker) CreateContainer(containerName string, image string, cmd []
 	if err != nil {
 		return "", err
 	}
+
 	_, err = io.Copy(os.Stdout, reader)
 	if err != nil {
 		return "", err
@@ -94,4 +96,29 @@ func (docker *Docker) DestroyContainer(containerId string) error {
 	}
 
 	return nil
+}
+
+func (docker *Docker) ReadContainerLogs(containerId string, ctx context.Context, listener func(line string)) {
+	reader, _ := docker.client.ContainerLogs(context.Background(), containerId, types.ContainerLogsOptions{
+		ShowStdout: true,
+		Follow:     true,
+	})
+
+	lineReader := bufio.NewReader(reader)
+	defer reader.Close()
+
+	for {
+		line, _, err := lineReader.ReadLine()
+		if err != nil {
+			return
+		} else {
+			listener(string(line))
+		}
+	}
+}
+
+type DockerLogEvent struct {
+	Status         string `json:"status"`
+	ProgressDetail string `json:"progressDetail"`
+	Id             string `json:"id"`
 }

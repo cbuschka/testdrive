@@ -41,6 +41,7 @@ version: v1
 services:
   db:
     image: db-image
+
   appserver:
     image: appserver-image
     depends_on:

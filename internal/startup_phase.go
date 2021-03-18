@@ -15,7 +15,7 @@ func (phase *StartupPhase) postHandle(event *Event) (Phase, error) {
 		return nil, err
 	}
 
-	err = phase.session.startContainersForStartableTasks("service")
+	err = phase.session.startContainersForStartableServices()
 	if err != nil {
 		return nil, err
 	}

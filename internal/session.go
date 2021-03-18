@@ -63,7 +63,7 @@ func (session *Session) Run() (int, error) {
 		return -1, err
 	}
 
-	err = session.assTaskTasksFrom(config)
+	err = session.addTaskTasksFrom(config)
 	if err != nil {
 		return -1, err
 	}
@@ -108,10 +108,15 @@ func (session *Session) handleEvent(event Event) {
 		}
 	} else if event.Type() == "container.start" {
 		task := session.model.GetTaskByContainerId(event.Id())
-		if task != nil && task.config.Healthcheck == nil {
-			session.model.TaskReady(task)
-		} else {
-			session.model.TaskStarted(task)
+		if task != nil {
+			go session.containerRuntime.ReadContainerLogs(event.Id(), session.ctx, func(line string) {
+				session.eventQueue <- &LogEvent{line: line}
+			})
+			if task.config.Healthcheck == nil {
+				session.model.TaskReady(task)
+			} else {
+				session.model.TaskStarted(task)
+			}
 		}
 	} else if event.Type() == "container.die" {
 		task := session.model.GetTaskByContainerId(event.Id())
@@ -123,6 +128,8 @@ func (session *Session) handleEvent(event Event) {
 		log.Printf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "network.connect" {
 		log.Printf("Event seen: %s\n", event.Type())
+	} else if event.Type() == "log" {
+		log.Printf("%s\n", event.(*LogEvent).line)
 	} else if event.Type() == "tick" {
 		// ignored
 	} else {
@@ -130,9 +137,9 @@ func (session *Session) handleEvent(event Event) {
 	}
 }
 
-func (session *Session) assTaskTasksFrom(config *Config) error {
+func (session *Session) addTaskTasksFrom(config *Config) error {
 	for taskName, taskConfig := range config.Tasks {
-		err := session.model.AddTask(&Task{name: taskName, taskType: "task", dependencies: make([]string, 0), status: New, config: &taskConfig})
+		err := session.model.AddTask(&Task{name: taskName, taskType: "task", status: New, config: taskConfig})
 		if err != nil {
 			return err
 		}
@@ -142,7 +149,7 @@ func (session *Session) assTaskTasksFrom(config *Config) error {
 
 func (session *Session) addServiceTasksFrom(config *Config) error {
 	for taskName, taskConfig := range config.Services {
-		err := session.model.AddTask(&Task{name: taskName, taskType: "service", dependencies: make([]string, 0), status: New, config: &taskConfig})
+		err := session.model.AddTask(&Task{name: taskName, taskType: "service", status: New, config: taskConfig})
 		if err != nil {
 			return err
 		}
@@ -162,8 +169,20 @@ func (session *Session) createContainersForCreatableTasks(taskType string) error
 	return nil
 }
 
-func (session *Session) startContainersForStartableTasks(taskType string) error {
-	startableTasks := session.model.getStartableTasks(taskType)
+func (session *Session) startContainersForStartableServices() error {
+	startableTasks := session.model.getStartableServices()
+	for _, startableTask := range startableTasks {
+		log.Printf("Found startable task %s.", startableTask.name)
+		err := session.startContainer(startableTask)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (session *Session) startContainersForStartableTasks() error {
+	startableTasks := session.model.getStartableTasks()
 	for _, startableTask := range startableTasks {
 		log.Printf("Found startable task %s.", startableTask.name)
 		err := session.startContainer(startableTask)

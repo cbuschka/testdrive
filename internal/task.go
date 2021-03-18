@@ -18,7 +18,6 @@ const (
 
 type Task struct {
 	name         string
-	dependencies []string
 	status       TaskStatus
 	config       *TaskConfig
 	containerId  string
