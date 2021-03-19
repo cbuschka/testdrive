@@ -2,6 +2,11 @@ package internal
 
 type LogEvent struct {
 	line string
+	containerName string
+}
+
+func (event *LogEvent) ContainerName() string {
+	return event.containerName
 }
 
 func (event *LogEvent) Type() string {

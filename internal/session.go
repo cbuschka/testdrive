@@ -123,7 +123,7 @@ func (session *Session) handleEvent(event Event) {
 		task := session.model.GetContainerByContainerId(event.Id())
 		if task != nil {
 			go session.containerRuntime.ReadContainerLogs(event.Id(), session.ctx, func(line string) {
-				session.eventQueue <- &LogEvent{line: line}
+				session.eventQueue <- &LogEvent{containerName: task.name, line: line}
 			})
 			if task.config.Healthcheck == nil {
 				session.model.ContainerReady(task)
@@ -142,7 +142,7 @@ func (session *Session) handleEvent(event Event) {
 	} else if event.Type() == "network.connect" {
 		log.Debugf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "log" {
-		log.Debugf("%s\n", event.(*LogEvent).line)
+		dialog.ContainerOutput(&event.(*LogEvent).containerName, &event.(*LogEvent).line)
 	} else if event.Type() == "tick" {
 		// ignored
 	} else {
