@@ -57,7 +57,7 @@ func tick(eventQueue chan Event) {
 
 func handleSigint(signalChannel chan os.Signal, eventChannel chan Event) {
 	for range signalChannel {
-		log.Debugf("SIGINT received.\n")
+		log.Info("SIGINT received.")
 		eventChannel <- nil
 	}
 }
@@ -81,14 +81,14 @@ func (session *Session) Run() (int, error) {
 
 	go tick(session.eventQueue)
 
-	go session.containerRuntime.AddEventListener(context.TODO(), func(event ContainerEvent) {
+	go session.containerRuntime.AddEventListener(session.ctx, func(event ContainerEvent) {
 		session.eventQueue <- &event
 	})
 
 	session.phase = Phase(&StartupPhase{session: session})
 
 	for event := range session.eventQueue {
-		log.Debugf("Phase is %s, event is %v.\n", session.phase.String(), event)
+		log.Debugf("Phase is %s, event is %v.", session.phase.String(), event)
 
 		if event == nil {
 			session.phase = Phase(&ShutdownPhase{session: session})
@@ -128,7 +128,7 @@ func (session *Session) handleEvent(event Event) {
 			if task.config.Healthcheck == nil {
 				session.model.ContainerReady(task)
 			} else {
-				session.model.TaskStarted(task)
+				session.model.ContainerStarted(task)
 			}
 		}
 	} else if event.Type() == "container.die" {

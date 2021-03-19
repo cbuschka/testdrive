@@ -85,14 +85,14 @@ func (model *Model) ContainerCreating(container *Container) {
 	log.Debugf("Container %s marked as creating.\n", container.name)
 }
 
-func (model *Model) TaskStarted(container *Container) {
+func (model *Model) ContainerStarted(container *Container) {
 	container.status = Started
-	log.Debugf("Container %s marked as started.\n", container.name)
+	log.Infof("Container %s marked as started.\n", container.name)
 }
 
 func (model *Model) ContainerReady(container *Container) {
 	container.status = Ready
-	log.Debugf("Container %s marked as ready.\n", container.name)
+	log.Infof("Container %s marked as ready.\n", container.name)
 }
 
 func (model *Model) ContainerCreated(container *Container) {
@@ -107,12 +107,12 @@ func (model *Model) ContainerStarting(container *Container) {
 
 func (model *Model) ContainerFailed(container *Container) {
 	container.status = Failed
-	log.Debugf("Container %s marked as failed.\n", container.name)
+	log.Warningf("Container %s marked as failed.\n", container.name)
 }
 
 func (model *Model) ContainerStopped(container *Container) {
 	container.status = Stopped
-	log.Debugf("Container %s marked as stopped.\n", container.name)
+	log.Infof("Container %s marked as stopped.\n", container.name)
 }
 
 func (model *Model) ContainerDestroyed(container *Container) {

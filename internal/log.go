@@ -2,6 +2,18 @@ package internal
 
 import (
 	golog "github.com/op/go-logging"
+	"os"
 )
 
-var log = golog.MustGetLogger("testdrive")
+var log = initLogger()
+
+func initLogger() *golog.Logger {
+	format := golog.MustStringFormatter(`%{time:15:04:05.000} ▶ %{color:reset}%{message}`)
+	logger := golog.MustGetLogger("testdrive")
+	backend := golog.NewLogBackend(os.Stderr, "", 0)
+	formattedBackend := golog.NewBackendFormatter(backend, format)
+	leveledFormattedBackend := golog.AddModuleLevel(formattedBackend)
+	leveledFormattedBackend.SetLevel(golog.INFO, "")
+	logger.SetBackend(leveledFormattedBackend)
+	return logger
+}
