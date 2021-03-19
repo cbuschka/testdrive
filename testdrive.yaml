@@ -2,23 +2,19 @@ version: v1
 services:
   service0:
     image: gcr.io/google_containers/pause:3.0
-
   service1:
     image: gcr.io/google_containers/pause:3.0
     depends_on:
       - service0
-
 tasks:
   task0:
     image: ubuntu:latest
     command: [ "echo", "huhu from task0" ]
-
   task1:
     image: ubuntu:latest
     command: [ "bash", "-c", "for i in 1 2 3 4 5; do echo $i; sleep 1; done" ]
     depends_on:
       - task0
-
   task2:
     image: ubuntu:latest
     command: [ "echo", "huhu from task2" ]

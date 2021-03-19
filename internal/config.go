@@ -1,22 +1,22 @@
 package internal
 
 import (
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
-	Version  string                      `json:"version"`
-	Services map[string]*ContainerConfig `json:"services"`
-	Tasks    map[string]*ContainerConfig `json:"tasks"`
+	Version  string                      `yaml:"version"`
+	Services map[string]*ContainerConfig `yaml:"services"`
+	Tasks    map[string]*ContainerConfig `yaml:"tasks"`
 }
 
 type ContainerConfig struct {
-	Image        string   `json:"image"`
-	Command      []string `json:"command"`
-	Dependencies []string `json:"depends_on"`
+	Image        string   `yaml:"image"`
+	Command      []string `yaml:"command"`
+	Dependencies []string `yaml:"depends_on"`
 	Healthcheck  interface{}
 }
 
@@ -27,12 +27,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	jsonBytes, err := toJSON(bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(jsonBytes, &config)
+	err = yaml.Unmarshal(bytes, &config)
 	if err != nil {
 		return nil, err
 	}
