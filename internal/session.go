@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"time"
@@ -58,7 +57,7 @@ func tick(eventQueue chan Event) {
 
 func handleSigint(signalChannel chan os.Signal, eventChannel chan Event) {
 	for range signalChannel {
-		log.Printf("SIGINT received.\n")
+		log.Debugf("SIGINT received.\n")
 		eventChannel <- nil
 	}
 }
@@ -89,7 +88,7 @@ func (session *Session) Run() (int, error) {
 	session.phase = Phase(&StartupPhase{session: session})
 
 	for event := range session.eventQueue {
-		log.Printf("Phase is %s, event is %v.\n", session.phase.String(), event)
+		log.Debugf("Phase is %s, event is %v.\n", session.phase.String(), event)
 
 		if event == nil {
 			session.phase = Phase(&ShutdownPhase{session: session})
@@ -139,15 +138,15 @@ func (session *Session) handleEvent(event Event) {
 		task := session.model.GetContainerByContainerId(event.Id())
 		session.model.ContainerDestroyed(task)
 	} else if event.Type() == "image.pull" {
-		log.Printf("Event seen: %s\n", event.Type())
+		log.Debugf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "network.connect" {
-		log.Printf("Event seen: %s\n", event.Type())
+		log.Debugf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "log" {
-		log.Printf("%s\n", event.(*LogEvent).line)
+		log.Debugf("%s\n", event.(*LogEvent).line)
 	} else if event.Type() == "tick" {
 		// ignored
 	} else {
-		log.Printf("Unhandled event: %s\n", event.Type())
+		log.Debugf("Unhandled event: %s\n", event.Type())
 	}
 }
 
@@ -174,7 +173,7 @@ func (session *Session) addServiceContainersFrom(config *Config) error {
 func (session *Session) createContainersForCreatableContainers(containerType string) error {
 	creatableContainers := session.model.getCreatableContainers(containerType)
 	for _, creatableContainer := range creatableContainers {
-		log.Printf("Found creatable task %s.", creatableContainer.name)
+		log.Debugf("Found creatable task %s.", creatableContainer.name)
 		err := session.createContainer(creatableContainer)
 		if err != nil {
 			return err
@@ -186,7 +185,7 @@ func (session *Session) createContainersForCreatableContainers(containerType str
 func (session *Session) startContainersForStartableServices() error {
 	startableTasks := session.model.getStartableServiceContainers()
 	for _, startableTask := range startableTasks {
-		log.Printf("Found startable task %s.", startableTask.name)
+		log.Debugf("Found startable task %s.", startableTask.name)
 		err := session.startContainer(startableTask)
 		if err != nil {
 			return err
@@ -198,7 +197,7 @@ func (session *Session) startContainersForStartableServices() error {
 func (session *Session) startContainersForStartableTasks() error {
 	startableTasks := session.model.getStartableTaskContainers()
 	for _, startableTask := range startableTasks {
-		log.Printf("Found startable task %s.", startableTask.name)
+		log.Debugf("Found startable task %s.", startableTask.name)
 		err := session.startContainer(startableTask)
 		if err != nil {
 			return err
@@ -209,7 +208,7 @@ func (session *Session) startContainersForStartableTasks() error {
 
 func (session *Session) createContainer(task *Container) error {
 
-	log.Printf("Creating container for %s...\n", task.name)
+	log.Debugf("Creating container for %s...\n", task.name)
 
 	session.model.ContainerCreating(task)
 	id, err := session.containerRuntime.CreateContainer(task.name, task.config.Image, task.config.Command)
@@ -218,7 +217,7 @@ func (session *Session) createContainer(task *Container) error {
 		return err
 	}
 
-	log.Printf("Created container %s for task %s.", id, task.name)
+	log.Debugf("Created container %s for task %s.", id, task.name)
 
 	task.containerId = id
 
@@ -227,7 +226,7 @@ func (session *Session) createContainer(task *Container) error {
 
 func (session *Session) startContainer(task *Container) error {
 
-	log.Printf("Starting container task %s.", task.name)
+	log.Debugf("Starting container task %s.", task.name)
 
 	session.model.ContainerStarting(task)
 	err := session.containerRuntime.StartContainer(task.containerId)
@@ -251,7 +250,7 @@ func (session *Session) allContainersReady(taskType string) bool {
 func (session *Session) stopRunningContainers() error {
 	for _, container := range session.model.containers {
 		if container.status == Ready {
-			log.Printf("Stopping container for %s...\n", container.name)
+			log.Debugf("Stopping container for %s...\n", container.name)
 
 			container.status = Stopping
 			err := session.containerRuntime.StopContainer(container.containerId)
@@ -267,7 +266,7 @@ func (session *Session) stopRunningContainers() error {
 func (session *Session) destroyStoppedContainers() error {
 	for _, container := range session.model.containers {
 		if container.status == Stopped {
-			log.Printf("Destroying container for %s...\n", container.name)
+			log.Debugf("Destroying container for %s...\n", container.name)
 
 			container.status = Destroying
 			err := session.containerRuntime.DestroyContainer(container.containerId)

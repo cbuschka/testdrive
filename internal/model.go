@@ -1,7 +1,5 @@
 package internal
 
-import "log"
-
 type Model struct {
 	containers map[string]*Container
 }
@@ -28,7 +26,7 @@ func (model *Model) AddContainer(container *Container) error {
 func (model *Model) AllDependenciesReady(container *Container) bool {
 	for _, dependency := range container.config.Dependencies {
 		if model.containers[dependency].status != Ready {
-			log.Printf("Dependency %s->%s not ready.\n", container.name, dependency)
+			log.Debugf("Dependency %s->%s not ready.\n", container.name, dependency)
 			return false
 		}
 	}
@@ -84,40 +82,40 @@ func (model *Model) getStartableTaskContainers() []*Container {
 
 func (model *Model) ContainerCreating(container *Container) {
 	container.status = Creating
-	log.Printf("Container %s marked as creating.\n", container.name)
+	log.Debugf("Container %s marked as creating.\n", container.name)
 }
 
 func (model *Model) TaskStarted(container *Container) {
 	container.status = Started
-	log.Printf("Container %s marked as started.\n", container.name)
+	log.Debugf("Container %s marked as started.\n", container.name)
 }
 
 func (model *Model) ContainerReady(container *Container) {
 	container.status = Ready
-	log.Printf("Container %s marked as ready.\n", container.name)
+	log.Debugf("Container %s marked as ready.\n", container.name)
 }
 
 func (model *Model) ContainerCreated(container *Container) {
 	container.status = Created
-	log.Printf("Container %s marked as created.\n", container.name)
+	log.Debugf("Container %s marked as created.\n", container.name)
 }
 
 func (model *Model) ContainerStarting(container *Container) {
 	container.status = Starting
-	log.Printf("Container %s marked as starting.\n", container.name)
+	log.Debugf("Container %s marked as starting.\n", container.name)
 }
 
 func (model *Model) ContainerFailed(container *Container) {
 	container.status = Failed
-	log.Printf("Container %s marked as failed.\n", container.name)
+	log.Debugf("Container %s marked as failed.\n", container.name)
 }
 
 func (model *Model) ContainerStopped(container *Container) {
 	container.status = Stopped
-	log.Printf("Container %s marked as stopped.\n", container.name)
+	log.Debugf("Container %s marked as stopped.\n", container.name)
 }
 
 func (model *Model) ContainerDestroyed(container *Container) {
 	container.status = Destroyed
-	log.Printf("Container %s marked as destroyed.\n", container.name)
+	log.Debugf("Container %s marked as destroyed.\n", container.name)
 }

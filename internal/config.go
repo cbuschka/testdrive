@@ -3,7 +3,6 @@ package internal
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -50,7 +49,7 @@ func cleanContainerConfig(name string, task *ContainerConfig) {
 		if dependency != name {
 			cleanedDependencies = append(cleanedDependencies, dependency)
 		} else {
-			log.Printf("Removed self dependency in %s.\n", name)
+			log.Debugf("Removed self dependency in %s.\n", name)
 		}
 	}
 	task.Dependencies = cleanedDependencies
