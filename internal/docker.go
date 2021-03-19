@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"io"
-	"os"
 )
 
 type Docker struct {
@@ -49,9 +48,17 @@ func (docker *Docker) CreateContainer(containerName string, image string, cmd []
 		return "", err
 	}
 
-	_, err = io.Copy(os.Stdout, reader)
-	if err != nil {
-		return "", err
+	lineReader := bufio.NewReader(reader)
+	for {
+		line, _, err := lineReader.ReadLine()
+		if err != nil {
+			if io.EOF == err {
+				break
+			} else {
+				return "", err
+			}
+		}
+		log.Infof("%s: %s", containerName, line)
 	}
 
 	containerConfig := container.Config{}
