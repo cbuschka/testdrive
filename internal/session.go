@@ -131,10 +131,10 @@ func (session *Session) handleEvent(event Event) {
 				session.model.ContainerStarted(task)
 			}
 		}
-	} else if event.Type() == "container.die" {
+	} else if event.Type() == "container.die" || event.Type() == "container.stop" || event.Type() == "container.kill" {
 		task := session.model.GetContainerByContainerId(event.Id())
 		session.model.ContainerStopped(task)
-	} else if event.Type() == "container.kill" {
+	} else if event.Type() == "container.destroy" {
 		task := session.model.GetContainerByContainerId(event.Id())
 		session.model.ContainerDestroyed(task)
 	} else if event.Type() == "image.pull" {
@@ -249,7 +249,7 @@ func (session *Session) allContainersReady(taskType string) bool {
 
 func (session *Session) stopRunningContainers() error {
 	for _, container := range session.model.containers {
-		if container.status == Ready {
+		if container.status == Ready || container.status == Started {
 			log.Debugf("Stopping container for %s...\n", container.name)
 
 			container.status = Stopping
@@ -263,10 +263,10 @@ func (session *Session) stopRunningContainers() error {
 	return nil
 }
 
-func (session *Session) destroyStoppedContainers() error {
+func (session *Session) destroyNonRunningContainers() error {
 	for _, container := range session.model.containers {
-		if container.status == Stopped {
-			log.Debugf("Destroying container for %s...\n", container.name)
+		if container.status != Destroyed && container.status != Ready && container.status != Stopping {
+			log.Debugf("Destroying container %s...\n", container.name)
 
 			container.status = Destroying
 			err := session.containerRuntime.DestroyContainer(container.containerId)
@@ -282,6 +282,7 @@ func (session *Session) destroyStoppedContainers() error {
 func (session *Session) allContainersDestroyed() bool {
 	for _, container := range session.model.containers {
 		if container.status != Destroyed {
+			log.Debugf("Container %s still not destroyed (status %s).", container.name, container.status)
 			return false
 		}
 	}

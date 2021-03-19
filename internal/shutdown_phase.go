@@ -15,16 +15,16 @@ func (phase *ShutdownPhase) postHandle() (Phase, error) {
 		return nil, err
 	}
 
-	err = phase.session.destroyStoppedContainers()
+	err = phase.session.destroyNonRunningContainers()
 	if err != nil {
 		return nil, err
 	}
 
 	if phase.session.allContainersDestroyed() {
-		return Phase(&ShutdownPhase{session: phase.session}), nil
+		return Phase(&TerminatedPhase{session: phase.session}), nil
 	}
 
-	return Phase(&TerminatedPhase{session: phase.session}), nil
+	return Phase(phase), nil
 }
 
 func (phase *ShutdownPhase) isDone() bool {

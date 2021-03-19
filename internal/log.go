@@ -13,7 +13,7 @@ func initLogger() *golog.Logger {
 	backend := golog.NewLogBackend(os.Stderr, "", 0)
 	formattedBackend := golog.NewBackendFormatter(backend, format)
 	leveledFormattedBackend := golog.AddModuleLevel(formattedBackend)
-	leveledFormattedBackend.SetLevel(golog.INFO, "")
+	leveledFormattedBackend.SetLevel(golog.DEBUG, "")
 	logger.SetBackend(leveledFormattedBackend)
 	return logger
 }

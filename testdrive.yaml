@@ -6,6 +6,15 @@ services:
     image: gcr.io/google_containers/pause:3.0
     depends_on:
       - service0
+  service2:
+    image: gcr.io/google_containers/pause:3.0
+    depends_on:
+      - service0
+  service3:
+    image: gcr.io/google_containers/pause:3.0
+    depends_on:
+      - service0
+      - service1
 tasks:
   task0:
     image: ubuntu:latest
