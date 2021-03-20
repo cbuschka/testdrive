@@ -2,19 +2,22 @@ package internal
 
 import (
 	"context"
+	"fmt"
+	"github.com/sheerun/queue"
 	"os"
 	"os/signal"
 	"time"
 )
 
 type Session struct {
-	id               string
-	config           *Config
-	model            *Model
-	eventQueue       chan Event
-	phase            Phase
-	ctx              context.Context
-	containerRuntime ContainerRuntime
+	id                 string
+	config             *Config
+	model              *Model
+	eventQueue         *queue.Queue
+	phase              Phase
+	ctx                context.Context
+	containerRuntime   ContainerRuntime
+	dockerEventTimeout time.Duration
 }
 
 func NewSession() (*Session, error) {
@@ -24,8 +27,9 @@ func NewSession() (*Session, error) {
 		return nil, err
 	}
 	session := Session{id: "1", config: nil, ctx: context.Background(),
-		model: model, eventQueue: make(chan Event, 100),
-		phase: nil, containerRuntime: ContainerRuntime(docker)}
+		model: model, eventQueue: queue.New(),
+		phase: nil, containerRuntime: ContainerRuntime(docker),
+		dockerEventTimeout: 3 * time.Second}
 	return &session, nil
 }
 
@@ -48,17 +52,17 @@ func (session *Session) LoadConfig(file string) error {
 	return nil
 }
 
-func tick(eventQueue chan Event) {
+func tick(eventQueue *queue.Queue) {
 	for true {
-		eventQueue <- &TickEvent{}
-		time.Sleep(100 * time.Millisecond)
+		eventQueue.Append(&TickEvent{})
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
 
-func handleSigint(signalChannel chan os.Signal, eventChannel chan Event) {
+func handleSigint(signalChannel chan os.Signal, eventChannel *queue.Queue) {
 	for range signalChannel {
 		log.Info("SIGINT received.")
-		eventChannel <- nil
+		eventChannel.Append(&SigintEvent{})
 	}
 }
 
@@ -82,12 +86,23 @@ func (session *Session) Run() (int, error) {
 	go tick(session.eventQueue)
 
 	go session.containerRuntime.AddEventListener(session.ctx, func(event ContainerEvent) {
-		session.eventQueue <- &event
+
+		id := event.Id()
+		if id != "" {
+			container := session.model.GetContainerByContainerId(id)
+			if container != nil {
+				message := fmt.Sprintf("%s: %s", container.name, event.message)
+				event = ContainerEvent{eventType: event.eventType, id: event.id, message: message}
+			}
+		}
+
+		session.eventQueue.Append(&event)
 	})
 
 	session.phase = Phase(&StartupPhase{session: session})
 
-	for event := range session.eventQueue {
+	for {
+		event := session.eventQueue.Pop().(Event)
 		log.Debugf("Phase is %s, event is %v.", session.phase.String(), event)
 
 		if event == nil {
@@ -99,7 +114,10 @@ func (session *Session) Run() (int, error) {
 		}
 
 		if event != nil {
-			session.handleEvent(event)
+			err = session.handleEvent(event)
+			if err != nil {
+				return -1, err
+			}
 		}
 
 		session.phase, err = session.phase.postHandle()
@@ -113,41 +131,62 @@ func (session *Session) Run() (int, error) {
 	return 0, nil
 }
 
-func (session *Session) handleEvent(event Event) {
+func (session *Session) handleEvent(event Event) error {
 	if event.Type() == "container.create" {
 		task := session.model.GetContainerByContainerId(event.Id())
 		if task != nil {
 			session.model.ContainerCreated(task)
+		} else {
+			log.Warningf("Saw container created event for unknown container %s.", event.Id())
 		}
 	} else if event.Type() == "container.start" {
 		task := session.model.GetContainerByContainerId(event.Id())
 		if task != nil {
 			go session.containerRuntime.ReadContainerLogs(event.Id(), session.ctx, func(line string) {
-				session.eventQueue <- &LogEvent{containerName: task.name, line: line}
+				session.eventQueue.Append(&LogEvent{containerName: task.name, line: line})
 			})
 			if task.config.Healthcheck == nil {
 				session.model.ContainerReady(task)
 			} else {
 				session.model.ContainerStarted(task)
 			}
+		} else {
+			log.Warningf("Saw container started event for unknown container %s.", event.Id())
 		}
 	} else if event.Type() == "container.die" || event.Type() == "container.stop" || event.Type() == "container.kill" {
-		task := session.model.GetContainerByContainerId(event.Id())
-		session.model.ContainerStopped(task)
+		container := session.model.GetContainerByContainerId(event.Id())
+		if container != nil {
+			session.model.ContainerStopped(container)
+		} else {
+			log.Warningf("Saw container die/stop/kill event for unknown container %s.", event.Id())
+		}
 	} else if event.Type() == "container.destroy" {
-		task := session.model.GetContainerByContainerId(event.Id())
-		session.model.ContainerDestroyed(task)
+		container := session.model.GetContainerByContainerId(event.Id())
+		if container != nil {
+			session.model.ContainerDestroyed(container)
+		} else {
+			log.Warningf("Saw container destroyed event for unknown container %s.", event.Id())
+		}
 	} else if event.Type() == "image.pull" {
 		log.Debugf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "network.connect" {
 		log.Debugf("Event seen: %s\n", event.Type())
 	} else if event.Type() == "log" {
 		dialog.ContainerOutput(&event.(*LogEvent).containerName, &event.(*LogEvent).line)
+	} else if event.Type() == "sigint" {
+		log.Debugf("Sigint seen, shutting down...")
+		session.phase = &ShutdownPhase{session: session}
 	} else if event.Type() == "tick" {
 		// ignored
+		err := session.resyncContainerStates()
+		if err != nil {
+			return err
+		}
 	} else {
 		log.Debugf("Unhandled event: %s\n", event.Type())
 	}
+
+	return nil
 }
 
 func (session *Session) addTaskContainersFrom(config *Config) error {
@@ -173,7 +212,7 @@ func (session *Session) addServiceContainersFrom(config *Config) error {
 func (session *Session) createContainersForCreatableContainers(containerType string) error {
 	creatableContainers := session.model.getCreatableContainers(containerType)
 	for _, creatableContainer := range creatableContainers {
-		log.Debugf("Found creatable task %s.", creatableContainer.name)
+		log.Debugf("Found creatable container %s.", creatableContainer.name)
 		err := session.createContainer(creatableContainer)
 		if err != nil {
 			return err
@@ -185,7 +224,7 @@ func (session *Session) createContainersForCreatableContainers(containerType str
 func (session *Session) startContainersForStartableServices() error {
 	startableTasks := session.model.getStartableServiceContainers()
 	for _, startableTask := range startableTasks {
-		log.Debugf("Found startable task %s.", startableTask.name)
+		log.Debugf("Found startable container %s.", startableTask.name)
 		err := session.startContainer(startableTask)
 		if err != nil {
 			return err
@@ -206,32 +245,31 @@ func (session *Session) startContainersForStartableTasks() error {
 	return nil
 }
 
-func (session *Session) createContainer(task *Container) error {
+func (session *Session) createContainer(container *Container) error {
 
-	log.Debugf("Creating container for %s...\n", task.name)
+	log.Debugf("Creating container for %s...\n", container.name)
 
-	session.model.ContainerCreating(task)
-	id, err := session.containerRuntime.CreateContainer(task.name, task.config.Image, task.config.Command)
+	session.model.ContainerCreating(container)
+	id, err := session.containerRuntime.CreateContainer(container.name, container.config.Image, container.config.Command)
 	if err != nil {
-		session.model.ContainerFailed(task)
+		session.model.ContainerFailed(container)
 		return err
 	}
 
-	log.Debugf("Created container %s for task %s.", id, task.name)
-
-	task.containerId = id
+	log.Debugf("Started container creation for %s (%s).", container.name, id)
+	container.containerId = id
 
 	return nil
 }
 
-func (session *Session) startContainer(task *Container) error {
+func (session *Session) startContainer(container *Container) error {
 
-	log.Debugf("Starting container task %s.", task.name)
+	log.Debugf("Starting container %s (%s).", container.name, container.containerId)
 
-	session.model.ContainerStarting(task)
-	err := session.containerRuntime.StartContainer(task.containerId)
+	session.model.ContainerStarting(container)
+	err := session.containerRuntime.StartContainer(container.containerId)
 	if err != nil {
-		session.model.ContainerFailed(task)
+		session.model.ContainerFailed(container)
 		return err
 	}
 
@@ -250,9 +288,10 @@ func (session *Session) allContainersReady(taskType string) bool {
 func (session *Session) stopRunningContainers() error {
 	for _, container := range session.model.containers {
 		if container.status == Ready || container.status == Started {
-			log.Debugf("Stopping container for %s...\n", container.name)
+			log.Debugf("Stopping container %s (%s)...\n", container.name, container.containerId)
 
 			container.status = Stopping
+			container.stoppStartedAt = time.Now()
 			err := session.containerRuntime.StopContainer(container.containerId)
 			if err != nil {
 				return nil
@@ -265,10 +304,11 @@ func (session *Session) stopRunningContainers() error {
 
 func (session *Session) destroyNonRunningContainers() error {
 	for _, container := range session.model.containers {
-		if container.status != Destroyed && container.status != Ready && container.status != Stopping {
-			log.Debugf("Destroying container %s...\n", container.name)
+		if container.status != Destroyed && container.status != Creating && container.status != Starting && container.status != Destroying && container.status != Stopping {
+			log.Debugf("Destroying container %s (%s)...\n", container.name, container.containerId)
 
 			container.status = Destroying
+			container.destroyStartedAt = time.Now()
 			err := session.containerRuntime.DestroyContainer(container.containerId)
 			if err != nil {
 				return nil
@@ -281,8 +321,8 @@ func (session *Session) destroyNonRunningContainers() error {
 
 func (session *Session) allContainersDestroyed() bool {
 	for _, container := range session.model.containers {
-		if container.status != Destroyed {
-			log.Debugf("Container %s still not destroyed (status %s).", container.name, container.status)
+		if container.status != Destroyed && container.status != New {
+			log.Debugf("Container %s (%s) still not destroyed (%s).", container.name, container.containerId, container.status)
 			return false
 		}
 	}
@@ -298,4 +338,47 @@ func (session *Session) allContainersStopped(containerType string) bool {
 	}
 
 	return true
+}
+
+func (session *Session) resyncContainerStates() error {
+
+	log.Debugf("Resynchronizing container states...")
+
+	stateByContainerId, err := session.containerRuntime.ListContainers()
+	if err != nil {
+		return err
+	}
+
+	for _, container := range session.model.containers {
+
+		realState := stateByContainerId[container.containerId]
+		if realState == "running" && (container.status == Ready || container.status == Started) {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
+		} else if realState == "" && (container.status == New || container.status == Creating) {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
+		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as created.", container.name, container.containerId, container.status, realState)
+			container.status = Created
+		} else if realState == "running" && (container.status == New || container.status == Creating || container.status == Created || container.status == Starting) && container.startStartededAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: container %s (%s) running but in state %s. Marking as ready.", container.name, container.containerId, container.status)
+			if container.config.Healthcheck == nil {
+				container.status = Ready
+			} else {
+				container.status = Started
+			}
+		} else if realState == "" && container.status == Stopping && container.stoppStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
+			container.status = Destroyed
+		} else if realState == "" && container.status == Destroying && container.destroyStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
+			container.status = Destroyed
+		} else if realState == "" && (container.status == Ready || container.status == Started || container.status == Starting || container.status == Stopped) {
+			log.Debugf("State sync: container %s (%s) in state %s lost. Marking as destroyed.", container.name, container.containerId, container.status)
+			container.status = Destroyed
+		} else {
+			log.Debugf("State sync: Container %s (%s) is %s, but in reality %s.", container.name, container.containerId, container.status, realState)
+		}
+	}
+
+	return nil
 }

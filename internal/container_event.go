@@ -13,7 +13,7 @@ func (event *ContainerEvent) Type() string {
 }
 
 func (event *ContainerEvent) String() string {
-	return fmt.Sprintf("%v", *event)
+	return fmt.Sprintf("Event{eventType:%s, id:%s, message:%s}", event.eventType, event.id, event.message)
 }
 
 func (event *ContainerEvent) Id() string {

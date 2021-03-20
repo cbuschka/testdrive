@@ -8,5 +8,6 @@ type ContainerRuntime interface {
 	StartContainer(containerId string) error
 	StopContainer(containerId string) error
 	DestroyContainer(containerId string) error
-	ReadContainerLogs(containerId string, ctx context.Context, listener func(line string))
+	ReadContainerLogs(containerId string, ctx context.Context, listener func(line string)) error
+	ListContainers() (map[string]string, error)
 }

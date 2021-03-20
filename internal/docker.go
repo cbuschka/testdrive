@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"io"
+	"time"
 )
 
 type Docker struct {
@@ -86,7 +87,8 @@ func (docker *Docker) StartContainer(containerId string) error {
 
 func (docker *Docker) StopContainer(containerId string) error {
 
-	err := docker.client.ContainerStop(docker.context, containerId, nil)
+	timeout := 1 * time.Second
+	err := docker.client.ContainerStop(docker.context, containerId, &timeout)
 	if err != nil {
 		return err
 	}
@@ -96,7 +98,7 @@ func (docker *Docker) StopContainer(containerId string) error {
 
 func (docker *Docker) DestroyContainer(containerId string) error {
 
-	err := docker.client.ContainerRemove(docker.context, containerId, types.ContainerRemoveOptions{Force: true})
+	err := docker.client.ContainerRemove(docker.context, containerId, types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: true, Force: true})
 	if err != nil {
 		return err
 	}
@@ -104,11 +106,14 @@ func (docker *Docker) DestroyContainer(containerId string) error {
 	return nil
 }
 
-func (docker *Docker) ReadContainerLogs(containerId string, ctx context.Context, listener func(line string)) {
-	reader, _ := docker.client.ContainerLogs(context.Background(), containerId, types.ContainerLogsOptions{
+func (docker *Docker) ReadContainerLogs(containerId string, ctx context.Context, listener func(line string)) error {
+	reader, err := docker.client.ContainerLogs(context.Background(), containerId, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
 	})
+	if err != nil {
+		return nil
+	}
 
 	lineReader := bufio.NewReader(reader)
 	defer reader.Close()
@@ -116,7 +121,7 @@ func (docker *Docker) ReadContainerLogs(containerId string, ctx context.Context,
 	for {
 		line, _, err := lineReader.ReadLine()
 		if err != nil {
-			return
+			return err
 		} else {
 			listener(string(line))
 		}
@@ -127,4 +132,19 @@ type DockerLogEvent struct {
 	Status         string `json:"status"`
 	ProgressDetail string `json:"progressDetail"`
 	Id             string `json:"id"`
+}
+
+func (docker *Docker) ListContainers() (map[string]string, error) {
+
+	stateByContainerId := make(map[string]string)
+	containers, err := docker.client.ContainerList(docker.context, types.ContainerListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, currContainer := range containers {
+		stateByContainerId[currContainer.ID] = currContainer.State
+	}
+
+	return stateByContainerId, nil
 }
