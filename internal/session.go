@@ -354,6 +354,8 @@ func (session *Session) resyncContainerStates() error {
 		realState := stateByContainerId[container.containerId]
 		if realState == "running" && (container.status == Ready || container.status == Started) {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
+		} else if realState == "" && container.status == Destroyed  {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
 		} else if realState == "" && (container.status == New || container.status == Creating) {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
 		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
