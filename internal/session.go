@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/cbuschka/testdrive/internal/config"
+	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/sheerun/queue"
 	"os"
 	"os/signal"
@@ -11,7 +13,7 @@ import (
 
 type Session struct {
 	id                    string
-	config                *Config
+	config                *config.TestdriveConfig
 	model                 *Model
 	eventQueue            *queue.Queue
 	phase                 Phase
@@ -46,7 +48,7 @@ func (session *Session) LoadConfig(file string) error {
 		_ = reader.Close()
 	}()
 
-	config, err := LoadConfig(reader)
+	config, err := config.LoadConfig(reader)
 	if err != nil {
 		return err
 	}
@@ -207,7 +209,7 @@ func (session *Session) handleEvent(event Event) error {
 	return nil
 }
 
-func (session *Session) addTaskContainersFrom(config *Config) error {
+func (session *Session) addTaskContainersFrom(config *config.TestdriveConfig) error {
 	for taskName, taskConfig := range config.Tasks {
 		err := session.model.AddContainer(&Container{name: taskName, containerType: ContainerType_Task, status: New, config: taskConfig})
 		if err != nil {
@@ -217,7 +219,7 @@ func (session *Session) addTaskContainersFrom(config *Config) error {
 	return nil
 }
 
-func (session *Session) addServiceContainersFrom(config *Config) error {
+func (session *Session) addServiceContainersFrom(config *config.TestdriveConfig) error {
 	for serviceName, serviceConfig := range config.Services {
 		err := session.model.AddContainer(&Container{name: serviceName, containerType: ContainerType_Service, status: New, config: serviceConfig})
 		if err != nil {

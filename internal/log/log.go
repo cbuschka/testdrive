@@ -1,14 +1,30 @@
-package internal
+package log
 
 import (
 	golog "github.com/op/go-logging"
 	"os"
 )
 
-var log = initLogger()
+var logger = initLogger()
 var leveledFormattedBackend golog.LeveledBackend
 
-func setVerbose(verbose bool) {
+func Debugf(format string, args ...interface{}) {
+	logger.Debugf(format, args...)
+}
+
+func Infof(format string, args ...interface{}) {
+	logger.Infof(format, args...)
+}
+
+func Info(args ...interface{}) {
+	logger.Info(args...)
+}
+
+func Warningf(format string, args ...interface{}) {
+	logger.Warningf(format, args...)
+}
+
+func SetVerbose(verbose bool) {
 	if verbose {
 		leveledFormattedBackend.SetLevel(golog.DEBUG, "")
 	} else {

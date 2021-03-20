@@ -1,6 +1,10 @@
 package internal
 
-import "time"
+import (
+	"github.com/cbuschka/testdrive/internal/log"
+	"time"
+)
+
 
 type Model struct {
 	containers map[string]*Container

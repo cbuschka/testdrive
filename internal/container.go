@@ -1,6 +1,9 @@
 package internal
 
-import "time"
+import (
+	"github.com/cbuschka/testdrive/internal/config"
+	"time"
+)
 
 type ContainerStatus struct {
 	name string
@@ -32,7 +35,7 @@ type Container struct {
 	stoppStartedAt   time.Time
 	destroyStartedAt time.Time
 	failedAt         time.Time
-	config           *ContainerConfig
+	config           *config.ContainerConfig
 	containerId      string
 	containerType    string
 }

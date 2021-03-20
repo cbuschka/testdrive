@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/jpillora/opts"
 	"os"
 )
@@ -28,7 +29,7 @@ func (config *CommandConfig) Run() error {
 		return err
 	}
 
-	setVerbose(config.Verbose)
+	log.SetVerbose(config.Verbose)
 
 	err = session.LoadConfig("testdrive.yaml")
 	if err != nil {

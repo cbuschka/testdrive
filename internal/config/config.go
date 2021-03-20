@@ -1,12 +1,13 @@
-package internal
+package config
 
 import (
+	"github.com/cbuschka/testdrive/internal/log"
 	"io"
 	"io/ioutil"
 	"gopkg.in/yaml.v3"
 )
 
-type Config struct {
+type TestdriveConfig struct {
 	Version  string                      `yaml:"version"`
 	Services map[string]*ContainerConfig `yaml:"services"`
 	Tasks    map[string]*ContainerConfig `yaml:"tasks"`
@@ -19,8 +20,8 @@ type ContainerConfig struct {
 	Healthcheck  interface{}
 }
 
-func LoadConfig(reader io.Reader) (*Config, error) {
-	config := Config{}
+func LoadConfig(reader io.Reader) (*TestdriveConfig, error) {
+	config := TestdriveConfig{}
 	bytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 	return &config, nil
 }
 
-func cleanConfig(c *Config) {
+func cleanConfig(c *TestdriveConfig) {
 	for name, task := range c.Tasks {
 		cleanContainerConfig(name, task)
 	}
@@ -55,7 +56,7 @@ func cleanContainerConfig(name string, task *ContainerConfig) {
 		if dependency != name {
 			cleanedDependencies = append(cleanedDependencies, dependency)
 		} else {
-			log.Debugf("Removed self dependency in %s.\n", name)
+			log.Debugf("Removed self dependency in %s.", name)
 		}
 	}
 	task.Dependencies = cleanedDependencies

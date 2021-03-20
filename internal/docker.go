@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -153,6 +154,6 @@ func (docker *Docker) GetContainerExitCode(containerId string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	
+
 	return response.State.ExitCode, nil
 }

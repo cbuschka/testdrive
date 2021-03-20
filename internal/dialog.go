@@ -1,5 +1,7 @@
 package internal
 
+import "github.com/cbuschka/testdrive/internal/log"
+
 type Dialog struct{}
 
 var dialog = Dialog{}
