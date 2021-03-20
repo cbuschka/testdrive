@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	configPkg "github.com/cbuschka/testdrive/internal/config"
+	"github.com/cbuschka/testdrive/internal/container_runtime"
 	"github.com/cbuschka/testdrive/internal/dialog"
+	dockerPkg "github.com/cbuschka/testdrive/internal/docker"
 	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/cbuschka/testdrive/internal/model"
 	"github.com/sheerun/queue"
@@ -20,7 +22,7 @@ type Session struct {
 	eventQueue            *queue.Queue
 	phase                 Phase
 	ctx                   context.Context
-	containerRuntime      ContainerRuntime
+	containerRuntime      container_runtime.ContainerRuntime
 	resyncInterval        time.Duration
 	containerEventTimeout time.Duration
 	containerStopTimeout  time.Duration
@@ -28,13 +30,13 @@ type Session struct {
 
 func NewSession() (*Session, error) {
 	model := model.NewModel()
-	docker, err := NewDocker()
+	docker, err := dockerPkg.NewDocker()
 	if err != nil {
 		return nil, err
 	}
 	session := Session{id: "1", config: nil, ctx: context.Background(),
 		model: model, eventQueue: queue.New(),
-		phase: nil, containerRuntime: ContainerRuntime(docker),
+		phase: nil, containerRuntime: container_runtime.ContainerRuntime(docker),
 		resyncInterval:        1 * time.Second,
 		containerEventTimeout: 1 * time.Second,
 		containerStopTimeout:  5 * time.Second}
@@ -93,14 +95,13 @@ func (session *Session) Run() error {
 
 	go session.tick(session.eventQueue)
 
-	go session.containerRuntime.AddEventListener(session.ctx, func(event ContainerEvent) {
+	go session.containerRuntime.AddEventListener(session.ctx, func(event container_runtime.ContainerEvent) {
 
-		id := event.Id()
-		if id != "" {
-			container := session.model.GetContainerByContainerId(id)
+		if event.Id() != "" {
+			container := session.model.GetContainerByContainerId(event.Id())
 			if container != nil {
-				message := fmt.Sprintf("%s: %s", container.Name, event.message)
-				event = ContainerEvent{eventType: event.eventType, id: event.id, message: message}
+				message := fmt.Sprintf("%s: %s", container.Name, event.Message())
+				event = *container_runtime.NewContainerEvent(event.Type(), event.Id(), message)
 			}
 		}
 

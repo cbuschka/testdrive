@@ -1,9 +1,10 @@
-package processing
+package docker
 
 import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/cbuschka/testdrive/internal/container_runtime"
 	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -17,14 +18,14 @@ type Docker struct {
 	context context.Context
 }
 
-func (docker *Docker) AddEventListener(ctx context.Context, listener func(event ContainerEvent)) {
+func (docker *Docker) AddEventListener(ctx context.Context, listener func(event container_runtime.ContainerEvent)) {
 	msgChannel, errChannel := docker.client.Events(ctx, types.EventsOptions{})
 	for {
 		select {
 		case msg := <-msgChannel:
-			listener(ContainerEvent{eventType: fmt.Sprintf("%s.%s", msg.Type, msg.Action), id: msg.ID})
+			listener(*container_runtime.NewContainerEvent(fmt.Sprintf("%s.%s", msg.Type, msg.Action), msg.ID, ""))
 		case err := <-errChannel:
-			listener(ContainerEvent{eventType: "error", message: err.Error()})
+			listener(*container_runtime.NewContainerEvent("error", "", err.Error()))
 			return
 		case <-ctx.Done():
 			return
