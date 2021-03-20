@@ -21,7 +21,7 @@ tasks:
     command: [ "echo", "huhu from task0" ]
   task1:
     image: ubuntu:latest
-    command: [ "bash", "-c", "for i in 1 2 3 4 5; do echo $i; sleep 1; done" ]
+    command: [ "bash", "-c", "for i in $(seq 1 5); do echo \"huhu #$i from task1\"; sleep 1; done" ]
     depends_on:
       - task0
   task2:

@@ -147,3 +147,12 @@ func (docker *Docker) ListContainers() (map[string]string, error) {
 
 	return stateByContainerId, nil
 }
+
+func (docker *Docker) GetContainerExitCode(containerId string) (int, error) {
+	response, err := docker.client.ContainerInspect(docker.context, containerId)
+	if err != nil {
+		return -1, err
+	}
+	
+	return response.State.ExitCode, nil
+}

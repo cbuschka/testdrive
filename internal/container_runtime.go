@@ -6,6 +6,7 @@ import (
 )
 
 type ContainerRuntime interface {
+	GetContainerExitCode(containerId string) (int, error)
 	CreateContainer(containerName string, imageName string, cmd []string) (string, error)
 	AddEventListener(ctx context.Context, listener func(event ContainerEvent))
 	StartContainer(containerId string) error

@@ -132,6 +132,8 @@ func (session *Session) Run() error {
 
 	session.ctx.Done()
 
+	log.Info("Finished.")
+
 	return nil
 }
 
@@ -162,7 +164,18 @@ func (session *Session) handleEvent(event Event) error {
 	} else if event.Type() == "container.die" {
 		container := session.model.GetContainerByContainerId(event.Id())
 		if container != nil {
-			session.model.ContainerStopped(container)
+			exitCode, err := session.containerRuntime.GetContainerExitCode(event.Id())
+			if err != nil {
+				return err
+			}
+
+			if exitCode == 0 {
+				session.model.ContainerStopped(container)
+			} else {
+				session.model.ContainerFailed(container)
+				log.Warningf("Container %s has failed with exit code %d. Shutting down...", container.name, exitCode)
+				session.phase = &ShutdownPhase{session: session}
+			}
 		} else {
 			log.Warningf("Saw container die/stop/kill event for unknown container %s.", event.Id())
 		}
