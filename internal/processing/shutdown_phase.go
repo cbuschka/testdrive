@@ -4,6 +4,10 @@ type ShutdownPhase struct {
 	session *Session
 }
 
+func NewShutdownPhase(session *Session) *ShutdownPhase {
+	return &ShutdownPhase{session: session}
+}
+
 func (phase *ShutdownPhase) String() string {
 	return "PHASE_SHUTDOWN"
 }
@@ -15,13 +19,8 @@ func (phase *ShutdownPhase) postHandle() (Phase, error) {
 		return nil, err
 	}
 
-	err = phase.session.destroyNonRunningContainers()
-	if err != nil {
-		return nil, err
-	}
-
-	if phase.session.allContainersDestroyed() {
-		return Phase(&TerminatedPhase{session: phase.session}), nil
+	if phase.session.allContainersNonRunning() {
+		return Phase(NewCleanupPhase(phase.session)), nil
 	}
 
 	return Phase(phase), nil

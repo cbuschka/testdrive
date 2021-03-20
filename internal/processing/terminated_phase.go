@@ -4,6 +4,10 @@ type TerminatedPhase struct {
 	session *Session
 }
 
+func NewTerminatedPhase(session *Session) *TerminatedPhase {
+	return &TerminatedPhase{session: session}
+}
+
 func (phase *TerminatedPhase) String() string {
 	return "PHASE_TERMINATED"
 }

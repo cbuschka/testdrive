@@ -26,6 +26,7 @@ type Session struct {
 	resyncInterval        time.Duration
 	containerEventTimeout time.Duration
 	containerStopTimeout  time.Duration
+	interruptCount        int
 }
 
 func NewSession() (*Session, error) {
@@ -39,7 +40,8 @@ func NewSession() (*Session, error) {
 		phase: nil, containerRuntime: container_runtime.ContainerRuntime(docker),
 		resyncInterval:        1 * time.Second,
 		containerEventTimeout: 1 * time.Second,
-		containerStopTimeout:  5 * time.Second}
+		containerStopTimeout:  5 * time.Second,
+		interruptCount:        0}
 	return &session, nil
 }
 
@@ -198,8 +200,17 @@ func (session *Session) handleEvent(event Event) error {
 	} else if event.Type() == "log" {
 		dialog.ContainerOutput(&event.(*LogEvent).containerName, &event.(*LogEvent).line)
 	} else if event.Type() == "sigint" {
-		log.Debugf("Sigint seen, shutting down...")
-		session.phase = &ShutdownPhase{session: session}
+		session.interruptCount++
+		if session.interruptCount == 1 {
+			log.Debugf("Shutting down because of user interrupt...")
+			session.phase = NewShutdownPhase(session)
+		} else if session.interruptCount == 2 {
+			log.Debugf("Cleaning up because of multiple user interrupts...")
+			session.phase = NewCleanupPhase(session)
+		} else {
+			log.Info("Aborted.")
+			os.Exit(1)
+		}
 	} else if event.Type() == "tick" {
 		err := session.resyncContainerStates()
 		if err != nil {
@@ -342,6 +353,23 @@ func (session *Session) destroyNonRunningContainers() error {
 	return nil
 }
 
+func (session *Session) destroyAllNonDestroyedContainers() error {
+	for _, container := range session.model.Containers {
+		if container.Status != model.Destroyed && container.Status != model.New {
+			log.Debugf("Destroying container %s (%s)...\n", container.Name, container.ContainerId)
+
+			container.Status = model.Destroying
+			container.DestroyStartedAt = time.Now()
+			err := session.containerRuntime.DestroyContainer(container.ContainerId)
+			if err != nil {
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
 func (session *Session) allContainersDestroyed() bool {
 	for _, container := range session.model.Containers {
 		if container.Status != model.Destroyed && container.Status != model.New {
@@ -406,4 +434,14 @@ func (session *Session) resyncContainerStates() error {
 	}
 
 	return nil
+}
+
+func (session *Session) allContainersNonRunning() bool {
+	for _, container := range session.model.Containers {
+		if container.Status != model.Stopped && container.Status != model.Stopping && container.Status != model.Destroying && container.Status != model.Destroyed && container.Status != model.New && container.Status != model.Creating && container.Status != model.Created {
+			return false
+		}
+	}
+
+	return true
 }
