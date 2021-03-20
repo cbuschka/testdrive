@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type Event interface {
 	Type() string

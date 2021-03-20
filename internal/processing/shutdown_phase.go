@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type ShutdownPhase struct {
 	session *Session

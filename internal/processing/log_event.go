@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type LogEvent struct {
 	line string

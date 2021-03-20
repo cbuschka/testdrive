@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/cbuschka/testdrive/internal"
+	"github.com/cbuschka/testdrive/internal/cli"
 	"os"
 )
 
 func main() {
-	exitCode, err := internal.Run()
+	exitCode, err := cli.Run()
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}

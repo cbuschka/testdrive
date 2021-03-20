@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type RunningPhase struct {
 	session *Session

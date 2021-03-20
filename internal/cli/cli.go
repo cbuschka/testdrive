@@ -1,7 +1,8 @@
-package internal
+package cli
 
 import (
 	"github.com/cbuschka/testdrive/internal/log"
+	"github.com/cbuschka/testdrive/internal/processing"
 	"github.com/jpillora/opts"
 	"os"
 )
@@ -24,7 +25,7 @@ func Run() (int, error) {
 }
 
 func (config *CommandConfig) Run() error {
-	session, err := NewSession()
+	session, err := processing.NewSession()
 	if err != nil {
 		return err
 	}

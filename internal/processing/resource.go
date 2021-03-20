@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type Resource interface {
 	Name() string

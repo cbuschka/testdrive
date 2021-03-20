@@ -1,4 +1,4 @@
-package internal
+package processing
 
 type Phase interface {
 	postHandle() (Phase, error)

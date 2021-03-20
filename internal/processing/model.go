@@ -1,4 +1,4 @@
-package internal
+package processing
 
 import (
 	"github.com/cbuschka/testdrive/internal/log"
