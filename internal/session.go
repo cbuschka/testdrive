@@ -66,17 +66,17 @@ func handleSigint(signalChannel chan os.Signal, eventChannel *queue.Queue) {
 	}
 }
 
-func (session *Session) Run() (int, error) {
+func (session *Session) Run() error {
 
 	config := session.config
 	err := session.addServiceContainersFrom(config)
 	if err != nil {
-		return -1, err
+		return err
 	}
 
 	err = session.addTaskContainersFrom(config)
 	if err != nil {
-		return -1, err
+		return err
 	}
 
 	signalChannel := make(chan os.Signal, 1)
@@ -116,19 +116,19 @@ func (session *Session) Run() (int, error) {
 		if event != nil {
 			err = session.handleEvent(event)
 			if err != nil {
-				return -1, err
+				return err
 			}
 		}
 
 		session.phase, err = session.phase.postHandle()
 		if err != nil {
-			return -1, err
+			return err
 		}
 	}
 
 	session.ctx.Done()
 
-	return 0, nil
+	return nil
 }
 
 func (session *Session) handleEvent(event Event) error {
