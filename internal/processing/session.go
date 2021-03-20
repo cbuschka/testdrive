@@ -214,7 +214,7 @@ func (session *Session) handleEvent(event Event) error {
 
 func (session *Session) addTaskContainersFrom(config *configPkg.TestdriveConfig) error {
 	for taskName, taskConfig := range config.Tasks {
-		err := session.model.AddContainer(&model.Container{Name: taskName, ContainerType: model.ContainerType_Task, Status: model.New, Config: taskConfig})
+		err := session.model.AddContainer(&model.Container{Name: taskName, ContainerType: model.Task, Status: model.New, Config: taskConfig})
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (session *Session) addTaskContainersFrom(config *configPkg.TestdriveConfig)
 
 func (session *Session) addServiceContainersFrom(config *configPkg.TestdriveConfig) error {
 	for serviceName, serviceConfig := range config.Services {
-		err := session.model.AddContainer(&model.Container{Name: serviceName, ContainerType: model.ContainerType_Service, Status: model.New, Config: serviceConfig})
+		err := session.model.AddContainer(&model.Container{Name: serviceName, ContainerType: model.Service, Status: model.New, Config: serviceConfig})
 		if err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func (session *Session) addServiceContainersFrom(config *configPkg.TestdriveConf
 	return nil
 }
 
-func (session *Session) createContainersForCreatableContainers(containerType string) error {
+func (session *Session) createContainersForCreatableContainers(containerType model.ContainerType) error {
 	creatableContainers := session.model.GetCreatableContainers(containerType)
 	for _, creatableContainer := range creatableContainers {
 		log.Debugf("Found creatable container %s.", creatableContainer.Name)
@@ -299,9 +299,9 @@ func (session *Session) startContainer(container *model.Container) error {
 	return nil
 }
 
-func (session *Session) allContainersReady(taskType string) bool {
+func (session *Session) allContainersReady(containerType model.ContainerType) bool {
 	for _, container := range session.model.Containers {
-		if container.ContainerType == taskType && container.Status != model.Ready {
+		if container.ContainerType == containerType && container.Status != model.Ready {
 			return false
 		}
 	}
@@ -355,7 +355,7 @@ func (session *Session) allContainersDestroyed() bool {
 
 func (session *Session) allTaskContainersStopped() bool {
 	for _, container := range session.model.Containers {
-		if container.ContainerType == "task" && (container.Status != model.Stopped && container.Status != model.Destroyed) {
+		if container.ContainerType == model.Task && (container.Status != model.Stopped && container.Status != model.Destroyed) {
 			return false
 		}
 	}

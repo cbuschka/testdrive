@@ -37,10 +37,5 @@ type Container struct {
 	FailedAt         time.Time
 	Config           *config.ContainerConfig
 	ContainerId      string
-	ContainerType    string
+	ContainerType    ContainerType
 }
-
-const (
-	ContainerType_Service = "service"
-	ContainerType_Task    = "task"
-)

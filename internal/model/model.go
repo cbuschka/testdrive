@@ -42,10 +42,10 @@ func (model *Model) AllDependenciesReady(container *Container) bool {
 
 func (model *Model) AllServiceDependenciesReadyAndAllTaskDependenciesStopped(container *Container) bool {
 	for _, dependency := range container.Config.Dependencies {
-		if model.Containers[dependency].ContainerType == ContainerType_Service && model.Containers[dependency].Status != Ready {
+		if model.Containers[dependency].ContainerType == Service && model.Containers[dependency].Status != Ready {
 			return false
 		}
-		if model.Containers[dependency].ContainerType == ContainerType_Task && model.Containers[dependency].Status != Stopped {
+		if model.Containers[dependency].ContainerType == Task && model.Containers[dependency].Status != Stopped {
 			return false
 		}
 	}
@@ -53,7 +53,7 @@ func (model *Model) AllServiceDependenciesReadyAndAllTaskDependenciesStopped(con
 	return true
 }
 
-func (model *Model) GetCreatableContainers(containerType string) []*Container {
+func (model *Model) GetCreatableContainers(containerType ContainerType) []*Container {
 	createableContainers := make([]*Container, 0)
 	for _, container := range model.Containers {
 		if container.Status == New && container.ContainerType == containerType {
@@ -67,7 +67,7 @@ func (model *Model) GetCreatableContainers(containerType string) []*Container {
 func (model *Model) GetStartableServiceContainers() []*Container {
 	startableContainers := make([]*Container, 0)
 	for _, container := range model.Containers {
-		if container.Status == Created && container.ContainerType == ContainerType_Service && model.AllDependenciesReady(container) {
+		if container.Status == Created && container.ContainerType == Service && model.AllDependenciesReady(container) {
 			startableContainers = append(startableContainers, container)
 		}
 	}
@@ -78,7 +78,7 @@ func (model *Model) GetStartableServiceContainers() []*Container {
 func (model *Model) GetStartableTaskContainers() []*Container {
 	startableContainers := make([]*Container, 0)
 	for _, container := range model.Containers {
-		if container.Status == Created && container.ContainerType == ContainerType_Task && model.AllServiceDependenciesReadyAndAllTaskDependenciesStopped(container) {
+		if container.Status == Created && container.ContainerType == Task && model.AllServiceDependenciesReadyAndAllTaskDependenciesStopped(container) {
 			startableContainers = append(startableContainers, container)
 		}
 	}

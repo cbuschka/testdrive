@@ -1,5 +1,7 @@
 package processing
 
+import "github.com/cbuschka/testdrive/internal/model"
+
 type StartupPhase struct {
 	session *Session
 }
@@ -10,7 +12,7 @@ func (phase *StartupPhase) String() string {
 
 func (phase *StartupPhase) postHandle() (Phase, error) {
 
-	err := phase.session.createContainersForCreatableContainers("service")
+	err := phase.session.createContainersForCreatableContainers(model.Service)
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +22,7 @@ func (phase *StartupPhase) postHandle() (Phase, error) {
 		return nil, err
 	}
 
-	if phase.session.allContainersReady("service") {
+	if phase.session.allContainersReady(model.Service) {
 		return Phase(&RunningPhase{session: phase.session}), nil
 	}
 
