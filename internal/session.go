@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cbuschka/testdrive/internal/config"
+	"github.com/cbuschka/testdrive/internal/dialog"
 	"github.com/cbuschka/testdrive/internal/log"
 	"github.com/sheerun/queue"
 	"os"
