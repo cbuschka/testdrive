@@ -330,9 +330,9 @@ func (session *Session) allContainersDestroyed() bool {
 	return true
 }
 
-func (session *Session) allContainersStopped(containerType string) bool {
+func (session *Session) allTaskContainersStopped() bool {
 	for _, container := range session.model.containers {
-		if container.containerType == containerType && container.status != Stopped {
+		if container.containerType == "task" && (container.status != Stopped && container.status != Destroyed) {
 			return false
 		}
 	}
@@ -354,12 +354,12 @@ func (session *Session) resyncContainerStates() error {
 		realState := stateByContainerId[container.containerId]
 		if realState == "running" && (container.status == Ready || container.status == Started) {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
-		} else if realState == "" && container.status == Destroyed  {
+		} else if realState == "" && container.status == Destroyed {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
 		} else if realState == "" && (container.status == New || container.status == Creating) {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
 		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as created.", container.name, container.containerId, container.status, realState)
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as created.", container.name, container.containerId, container.status, realState)
 			container.status = Created
 		} else if realState == "running" && (container.status == New || container.status == Creating || container.status == Created || container.status == Starting) && container.startStartededAt.Add(session.dockerEventTimeout).Before(time.Now()) {
 			log.Debugf("State sync: container %s (%s) running but in state %s. Marking as ready.", container.name, container.containerId, container.status)
@@ -369,16 +369,16 @@ func (session *Session) resyncContainerStates() error {
 				container.status = Started
 			}
 		} else if realState == "" && container.status == Stopping && container.stoppStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
 			container.status = Destroyed
 		} else if realState == "" && container.status == Destroying && container.destroyStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but in reality %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
 			container.status = Destroyed
 		} else if realState == "" && (container.status == Ready || container.status == Started || container.status == Starting || container.status == Stopped) {
 			log.Debugf("State sync: container %s (%s) in state %s lost. Marking as destroyed.", container.name, container.containerId, container.status)
 			container.status = Destroyed
 		} else {
-			log.Debugf("State sync: Container %s (%s) is %s, but in reality %s.", container.name, container.containerId, container.status, realState)
+			log.Debugf("State sync: Container %s (%s) is %s, but container runtime shows %s.", container.name, container.containerId, container.status, realState)
 		}
 	}
 

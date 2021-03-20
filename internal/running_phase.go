@@ -20,7 +20,7 @@ func (phase *RunningPhase) postHandle() (Phase, error) {
 		return nil, err
 	}
 
-	if phase.session.allContainersStopped("task") {
+	if phase.session.allTaskContainersStopped() {
 		return Phase(&ShutdownPhase{session: phase.session}), nil
 	}
 
