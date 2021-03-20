@@ -26,7 +26,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.Unmarshal(bytes, &config)
+	err = yaml.UnmarshalStrict(bytes, &config)
 	if err != nil {
 		return nil, err
 	}
