@@ -3,7 +3,7 @@ package internal
 import (
 	"io"
 	"io/ioutil"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -26,7 +26,13 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.UnmarshalStrict(bytes, &config)
+	var node yaml.Node
+	err = yaml.Unmarshal(bytes, &node)
+	if err != nil {
+		return nil, err
+	}
+
+	err = node.Decode(&config)
 	if err != nil {
 		return nil, err
 	}
