@@ -1,4 +1,4 @@
-package processing
+package model
 
 import (
 	"github.com/cbuschka/testdrive/internal/config"
@@ -28,16 +28,16 @@ var (
 )
 
 type Container struct {
-	name             string
-	status           ContainerStatus
-	createStartedAt  time.Time
-	startStartededAt time.Time
-	stoppStartedAt   time.Time
-	destroyStartedAt time.Time
-	failedAt         time.Time
-	config           *config.ContainerConfig
-	containerId      string
-	containerType    string
+	Name             string
+	Status           ContainerStatus
+	CreateStartedAt  time.Time
+	StartStartededAt time.Time
+	StopStartedAt    time.Time
+	DestroyStartedAt time.Time
+	FailedAt         time.Time
+	Config           *config.ContainerConfig
+	ContainerId      string
+	ContainerType    string
 }
 
 const (

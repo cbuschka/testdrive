@@ -3,9 +3,10 @@ package processing
 import (
 	"context"
 	"fmt"
-	"github.com/cbuschka/testdrive/internal/config"
+	configPkg "github.com/cbuschka/testdrive/internal/config"
 	"github.com/cbuschka/testdrive/internal/dialog"
 	"github.com/cbuschka/testdrive/internal/log"
+	"github.com/cbuschka/testdrive/internal/model"
 	"github.com/sheerun/queue"
 	"os"
 	"os/signal"
@@ -14,8 +15,8 @@ import (
 
 type Session struct {
 	id                    string
-	config                *config.TestdriveConfig
-	model                 *Model
+	config                *configPkg.TestdriveConfig
+	model                 *model.Model
 	eventQueue            *queue.Queue
 	phase                 Phase
 	ctx                   context.Context
@@ -26,7 +27,7 @@ type Session struct {
 }
 
 func NewSession() (*Session, error) {
-	model := NewModel()
+	model := model.NewModel()
 	docker, err := NewDocker()
 	if err != nil {
 		return nil, err
@@ -49,7 +50,7 @@ func (session *Session) LoadConfig(file string) error {
 		_ = reader.Close()
 	}()
 
-	config, err := config.LoadConfig(reader)
+	config, err := configPkg.LoadConfig(reader)
 	if err != nil {
 		return err
 	}
@@ -98,7 +99,7 @@ func (session *Session) Run() error {
 		if id != "" {
 			container := session.model.GetContainerByContainerId(id)
 			if container != nil {
-				message := fmt.Sprintf("%s: %s", container.name, event.message)
+				message := fmt.Sprintf("%s: %s", container.Name, event.message)
 				event = ContainerEvent{eventType: event.eventType, id: event.id, message: message}
 			}
 		}
@@ -149,15 +150,15 @@ func (session *Session) handleEvent(event Event) error {
 			log.Warningf("Saw container created event for unknown container %s.", event.Id())
 		}
 	} else if event.Type() == "container.start" {
-		task := session.model.GetContainerByContainerId(event.Id())
-		if task != nil {
+		container := session.model.GetContainerByContainerId(event.Id())
+		if container != nil {
 			go session.containerRuntime.ReadContainerLogs(event.Id(), session.ctx, func(line string) {
-				session.eventQueue.Append(&LogEvent{containerName: task.name, line: line})
+				session.eventQueue.Append(&LogEvent{containerName: container.Name, line: line})
 			})
-			if task.config.Healthcheck == nil {
-				session.model.ContainerReady(task)
+			if container.Config.Healthcheck == nil {
+				session.model.ContainerReady(container)
 			} else {
-				session.model.ContainerStarted(task)
+				session.model.ContainerStarted(container)
 			}
 		} else {
 			log.Warningf("Saw container started event for unknown container %s.", event.Id())
@@ -176,7 +177,7 @@ func (session *Session) handleEvent(event Event) error {
 				session.model.ContainerStopped(container)
 			} else {
 				session.model.ContainerFailed(container)
-				log.Warningf("Container %s has failed with exit code %d. Shutting down...", container.name, exitCode)
+				log.Warningf("Container %s has failed with exit code %d. Shutting down...", container.Name, exitCode)
 				session.phase = &ShutdownPhase{session: session}
 			}
 		} else {
@@ -210,9 +211,9 @@ func (session *Session) handleEvent(event Event) error {
 	return nil
 }
 
-func (session *Session) addTaskContainersFrom(config *config.TestdriveConfig) error {
+func (session *Session) addTaskContainersFrom(config *configPkg.TestdriveConfig) error {
 	for taskName, taskConfig := range config.Tasks {
-		err := session.model.AddContainer(&Container{name: taskName, containerType: ContainerType_Task, status: New, config: taskConfig})
+		err := session.model.AddContainer(&model.Container{Name: taskName, ContainerType: model.ContainerType_Task, Status: model.New, Config: taskConfig})
 		if err != nil {
 			return err
 		}
@@ -220,9 +221,9 @@ func (session *Session) addTaskContainersFrom(config *config.TestdriveConfig) er
 	return nil
 }
 
-func (session *Session) addServiceContainersFrom(config *config.TestdriveConfig) error {
+func (session *Session) addServiceContainersFrom(config *configPkg.TestdriveConfig) error {
 	for serviceName, serviceConfig := range config.Services {
-		err := session.model.AddContainer(&Container{name: serviceName, containerType: ContainerType_Service, status: New, config: serviceConfig})
+		err := session.model.AddContainer(&model.Container{Name: serviceName, ContainerType: model.ContainerType_Service, Status: model.New, Config: serviceConfig})
 		if err != nil {
 			return err
 		}
@@ -231,9 +232,9 @@ func (session *Session) addServiceContainersFrom(config *config.TestdriveConfig)
 }
 
 func (session *Session) createContainersForCreatableContainers(containerType string) error {
-	creatableContainers := session.model.getCreatableContainers(containerType)
+	creatableContainers := session.model.GetCreatableContainers(containerType)
 	for _, creatableContainer := range creatableContainers {
-		log.Debugf("Found creatable container %s.", creatableContainer.name)
+		log.Debugf("Found creatable container %s.", creatableContainer.Name)
 		err := session.createContainer(creatableContainer)
 		if err != nil {
 			return err
@@ -243,9 +244,9 @@ func (session *Session) createContainersForCreatableContainers(containerType str
 }
 
 func (session *Session) startContainersForStartableServices() error {
-	startableTasks := session.model.getStartableServiceContainers()
+	startableTasks := session.model.GetStartableServiceContainers()
 	for _, startableTask := range startableTasks {
-		log.Debugf("Found startable container %s.", startableTask.name)
+		log.Debugf("Found startable container %s.", startableTask.Name)
 		err := session.startContainer(startableTask)
 		if err != nil {
 			return err
@@ -255,9 +256,9 @@ func (session *Session) startContainersForStartableServices() error {
 }
 
 func (session *Session) startContainersForStartableTasks() error {
-	startableTasks := session.model.getStartableTaskContainers()
+	startableTasks := session.model.GetStartableTaskContainers()
 	for _, startableTask := range startableTasks {
-		log.Debugf("Found startable task %s.", startableTask.name)
+		log.Debugf("Found startable task %s.", startableTask.Name)
 		err := session.startContainer(startableTask)
 		if err != nil {
 			return err
@@ -266,29 +267,29 @@ func (session *Session) startContainersForStartableTasks() error {
 	return nil
 }
 
-func (session *Session) createContainer(container *Container) error {
+func (session *Session) createContainer(container *model.Container) error {
 
-	log.Debugf("Creating container for %s...\n", container.name)
+	log.Debugf("Creating container for %s...\n", container.Name)
 
 	session.model.ContainerCreating(container)
-	id, err := session.containerRuntime.CreateContainer(container.name, container.config.Image, container.config.Command)
+	id, err := session.containerRuntime.CreateContainer(container.Name, container.Config.Image, container.Config.Command)
 	if err != nil {
 		session.model.ContainerFailed(container)
 		return err
 	}
 
-	log.Debugf("Started container creation for %s (%s).", container.name, id)
-	container.containerId = id
+	log.Debugf("Started container creation for %s (%s).", container.Name, id)
+	container.ContainerId = id
 
 	return nil
 }
 
-func (session *Session) startContainer(container *Container) error {
+func (session *Session) startContainer(container *model.Container) error {
 
-	log.Debugf("Starting container %s (%s).", container.name, container.containerId)
+	log.Debugf("Starting container %s (%s).", container.Name, container.ContainerId)
 
 	session.model.ContainerStarting(container)
-	err := session.containerRuntime.StartContainer(container.containerId)
+	err := session.containerRuntime.StartContainer(container.ContainerId)
 	if err != nil {
 		session.model.ContainerFailed(container)
 		return err
@@ -298,8 +299,8 @@ func (session *Session) startContainer(container *Container) error {
 }
 
 func (session *Session) allContainersReady(taskType string) bool {
-	for _, task := range session.model.containers {
-		if task.containerType == taskType && task.status != Ready {
+	for _, container := range session.model.Containers {
+		if container.ContainerType == taskType && container.Status != model.Ready {
 			return false
 		}
 	}
@@ -307,13 +308,13 @@ func (session *Session) allContainersReady(taskType string) bool {
 }
 
 func (session *Session) stopRunningContainers() error {
-	for _, container := range session.model.containers {
-		if container.status == Ready || container.status == Started {
-			log.Debugf("Stopping container %s (%s)...\n", container.name, container.containerId)
+	for _, container := range session.model.Containers {
+		if container.Status == model.Ready || container.Status == model.Started {
+			log.Debugf("Stopping container %s (%s)...\n", container.Name, container.ContainerId)
 
-			container.status = Stopping
-			container.stoppStartedAt = time.Now()
-			err := session.containerRuntime.StopContainer(container.containerId, session.containerStopTimeout)
+			container.Status = model.Stopping
+			container.StopStartedAt = time.Now()
+			err := session.containerRuntime.StopContainer(container.ContainerId, session.containerStopTimeout)
 			if err != nil {
 				return nil
 			}
@@ -324,13 +325,13 @@ func (session *Session) stopRunningContainers() error {
 }
 
 func (session *Session) destroyNonRunningContainers() error {
-	for _, container := range session.model.containers {
-		if container.status != Destroyed && container.status != Creating && container.status != Starting && container.status != Destroying && container.status != Stopping {
-			log.Debugf("Destroying container %s (%s)...\n", container.name, container.containerId)
+	for _, container := range session.model.Containers {
+		if container.Status != model.Destroyed && container.Status != model.Creating && container.Status != model.Starting && container.Status != model.Destroying && container.Status != model.Stopping {
+			log.Debugf("Destroying container %s (%s)...\n", container.Name, container.ContainerId)
 
-			container.status = Destroying
-			container.destroyStartedAt = time.Now()
-			err := session.containerRuntime.DestroyContainer(container.containerId)
+			container.Status = model.Destroying
+			container.DestroyStartedAt = time.Now()
+			err := session.containerRuntime.DestroyContainer(container.ContainerId)
 			if err != nil {
 				return nil
 			}
@@ -341,9 +342,9 @@ func (session *Session) destroyNonRunningContainers() error {
 }
 
 func (session *Session) allContainersDestroyed() bool {
-	for _, container := range session.model.containers {
-		if container.status != Destroyed && container.status != New {
-			log.Debugf("Container %s (%s) still not destroyed (%s).", container.name, container.containerId, container.status)
+	for _, container := range session.model.Containers {
+		if container.Status != model.Destroyed && container.Status != model.New {
+			log.Debugf("Container %s (%s) still not destroyed (%s).", container.Name, container.ContainerId, container.Status)
 			return false
 		}
 	}
@@ -352,8 +353,8 @@ func (session *Session) allContainersDestroyed() bool {
 }
 
 func (session *Session) allTaskContainersStopped() bool {
-	for _, container := range session.model.containers {
-		if container.containerType == "task" && (container.status != Stopped && container.status != Destroyed) {
+	for _, container := range session.model.Containers {
+		if container.ContainerType == "task" && (container.Status != model.Stopped && container.Status != model.Destroyed) {
 			return false
 		}
 	}
@@ -370,36 +371,36 @@ func (session *Session) resyncContainerStates() error {
 		return err
 	}
 
-	for _, container := range session.model.containers {
+	for _, container := range session.model.Containers {
 
-		realState := stateByContainerId[container.containerId]
-		if realState == "running" && (container.status == Ready || container.status == Started) {
-			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
-		} else if realState == "" && container.status == Destroyed {
-			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
-		} else if realState == "" && (container.status == New || container.status == Creating) {
-			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
-		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as created.", container.name, container.containerId, container.status, realState)
-			container.status = Created
-		} else if realState == "running" && (container.status == New || container.status == Creating || container.status == Created || container.status == Starting) && container.startStartededAt.Add(session.containerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: container %s (%s) running but in state %s. Marking as ready.", container.name, container.containerId, container.status)
-			if container.config.Healthcheck == nil {
-				container.status = Ready
+		realState := stateByContainerId[container.ContainerId]
+		if realState == "running" && (container.Status == model.Ready || container.Status == model.Started) {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.Name, container.ContainerId, container.Status)
+		} else if realState == "" && container.Status == model.Destroyed {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.Name, container.ContainerId, container.Status)
+		} else if realState == "" && (container.Status == model.New || container.Status == model.Creating) {
+			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.Name, container.ContainerId, container.Status)
+		} else if realState == "created" && container.Status == model.Creating && container.CreateStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as created.", container.Name, container.ContainerId, container.Status, realState)
+			container.Status = model.Created
+		} else if realState == "running" && (container.Status == model.New || container.Status == model.Creating || container.Status == model.Created || container.Status == model.Starting) && container.StartStartededAt.Add(session.containerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: container %s (%s) running but in state %s. Marking as ready.", container.Name, container.ContainerId, container.Status)
+			if container.Config.Healthcheck == nil {
+				container.Status = model.Ready
 			} else {
-				container.status = Started
+				container.Status = model.Started
 			}
-		} else if realState == "" && container.status == Stopping && container.stoppStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
-			container.status = Destroyed
-		} else if realState == "" && container.status == Destroying && container.destroyStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
-			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
-			container.status = Destroyed
-		} else if realState == "" && (container.status == Ready || container.status == Started || container.status == Starting || container.status == Stopped) {
-			log.Debugf("State sync: container %s (%s) in state %s lost. Marking as destroyed.", container.name, container.containerId, container.status)
-			container.status = Destroyed
+		} else if realState == "" && container.Status == model.Stopping && container.StopStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.Name, container.ContainerId, container.Status, realState)
+			container.Status = model.Destroyed
+		} else if realState == "" && container.Status == model.Destroying && container.DestroyStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
+			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.Name, container.ContainerId, container.Status, realState)
+			container.Status = model.Destroyed
+		} else if realState == "" && (container.Status == model.Ready || container.Status == model.Started || container.Status == model.Starting || container.Status == model.Stopped) {
+			log.Debugf("State sync: container %s (%s) in state %s lost. Marking as destroyed.", container.Name, container.ContainerId, container.Status)
+			container.Status = model.Destroyed
 		} else {
-			log.Debugf("State sync: Container %s (%s) is %s, but container runtime shows %s.", container.name, container.containerId, container.status, realState)
+			log.Debugf("State sync: Container %s (%s) is %s, but container runtime shows %s.", container.Name, container.ContainerId, container.Status, realState)
 		}
 	}
 
