@@ -10,14 +10,16 @@ import (
 )
 
 type Session struct {
-	id                 string
-	config             *Config
-	model              *Model
-	eventQueue         *queue.Queue
-	phase              Phase
-	ctx                context.Context
-	containerRuntime   ContainerRuntime
-	dockerEventTimeout time.Duration
+	id                    string
+	config                *Config
+	model                 *Model
+	eventQueue            *queue.Queue
+	phase                 Phase
+	ctx                   context.Context
+	containerRuntime      ContainerRuntime
+	resyncInterval        time.Duration
+	containerEventTimeout time.Duration
+	containerStopTimeout  time.Duration
 }
 
 func NewSession() (*Session, error) {
@@ -29,7 +31,9 @@ func NewSession() (*Session, error) {
 	session := Session{id: "1", config: nil, ctx: context.Background(),
 		model: model, eventQueue: queue.New(),
 		phase: nil, containerRuntime: ContainerRuntime(docker),
-		dockerEventTimeout: 3 * time.Second}
+		resyncInterval:        1 * time.Second,
+		containerEventTimeout: 1 * time.Second,
+		containerStopTimeout:  5 * time.Second}
 	return &session, nil
 }
 
@@ -52,10 +56,10 @@ func (session *Session) LoadConfig(file string) error {
 	return nil
 }
 
-func tick(eventQueue *queue.Queue) {
+func (session *Session) tick(eventQueue *queue.Queue) {
 	for true {
 		eventQueue.Append(&TickEvent{})
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(session.resyncInterval)
 	}
 }
 
@@ -83,7 +87,7 @@ func (session *Session) Run() error {
 	signal.Notify(signalChannel, os.Interrupt)
 	go handleSigint(signalChannel, session.eventQueue)
 
-	go tick(session.eventQueue)
+	go session.tick(session.eventQueue)
 
 	go session.containerRuntime.AddEventListener(session.ctx, func(event ContainerEvent) {
 
@@ -153,7 +157,9 @@ func (session *Session) handleEvent(event Event) error {
 		} else {
 			log.Warningf("Saw container started event for unknown container %s.", event.Id())
 		}
-	} else if event.Type() == "container.die" || event.Type() == "container.stop" || event.Type() == "container.kill" {
+	} else if event.Type() == "container.stop" || event.Type() == "container.kill" {
+		// inored
+	} else if event.Type() == "container.die" {
 		container := session.model.GetContainerByContainerId(event.Id())
 		if container != nil {
 			session.model.ContainerStopped(container)
@@ -177,7 +183,6 @@ func (session *Session) handleEvent(event Event) error {
 		log.Debugf("Sigint seen, shutting down...")
 		session.phase = &ShutdownPhase{session: session}
 	} else if event.Type() == "tick" {
-		// ignored
 		err := session.resyncContainerStates()
 		if err != nil {
 			return err
@@ -292,7 +297,7 @@ func (session *Session) stopRunningContainers() error {
 
 			container.status = Stopping
 			container.stoppStartedAt = time.Now()
-			err := session.containerRuntime.StopContainer(container.containerId)
+			err := session.containerRuntime.StopContainer(container.containerId, session.containerStopTimeout)
 			if err != nil {
 				return nil
 			}
@@ -358,20 +363,20 @@ func (session *Session) resyncContainerStates() error {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
 		} else if realState == "" && (container.status == New || container.status == Creating) {
 			log.Debugf("State sync: Container %s (%s) is %s - as expected, good.", container.name, container.containerId, container.status)
-		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+		} else if realState == "created" && container.status == Creating && container.createStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
 			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as created.", container.name, container.containerId, container.status, realState)
 			container.status = Created
-		} else if realState == "running" && (container.status == New || container.status == Creating || container.status == Created || container.status == Starting) && container.startStartededAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+		} else if realState == "running" && (container.status == New || container.status == Creating || container.status == Created || container.status == Starting) && container.startStartededAt.Add(session.containerEventTimeout).Before(time.Now()) {
 			log.Debugf("State sync: container %s (%s) running but in state %s. Marking as ready.", container.name, container.containerId, container.status)
 			if container.config.Healthcheck == nil {
 				container.status = Ready
 			} else {
 				container.status = Started
 			}
-		} else if realState == "" && container.status == Stopping && container.stoppStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+		} else if realState == "" && container.status == Stopping && container.stoppStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
 			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
 			container.status = Destroyed
-		} else if realState == "" && container.status == Destroying && container.destroyStartedAt.Add(session.dockerEventTimeout).Before(time.Now()) {
+		} else if realState == "" && container.status == Destroying && container.destroyStartedAt.Add(session.containerEventTimeout).Before(time.Now()) {
 			log.Debugf("State sync: Container %s (%s) is %s - but container runtime shows %s for a long time. Marking as destroyed.", container.name, container.containerId, container.status, realState)
 			container.status = Destroyed
 		} else if realState == "" && (container.status == Ready || container.status == Started || container.status == Starting || container.status == Stopped) {

@@ -85,9 +85,8 @@ func (docker *Docker) StartContainer(containerId string) error {
 	return nil
 }
 
-func (docker *Docker) StopContainer(containerId string) error {
+func (docker *Docker) StopContainer(containerId string, timeout time.Duration) error {
 
-	timeout := 1 * time.Second
 	err := docker.client.ContainerStop(docker.context, containerId, &timeout)
 	if err != nil {
 		return err

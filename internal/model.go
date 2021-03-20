@@ -28,7 +28,7 @@ func (model *Model) AddContainer(container *Container) error {
 func (model *Model) AllDependenciesReady(container *Container) bool {
 	for _, dependency := range container.config.Dependencies {
 		if model.containers[dependency].status != Ready {
-			log.Debugf("Dependency %s->%s not ready.\n", container.name, dependency)
+			log.Debugf("Dependency %s->%s not ready.", container.name, dependency)
 			return false
 		}
 	}
@@ -83,6 +83,11 @@ func (model *Model) getStartableTaskContainers() []*Container {
 }
 
 func (model *Model) ContainerCreating(container *Container) {
+
+	if container.status == Creating {
+		return
+	}
+
 	if container.status != New {
 		log.Warningf("Marking container %s as Creating, expected it to be New, but is in status %s.", container.name, container.status)
 	}
@@ -93,15 +98,23 @@ func (model *Model) ContainerCreating(container *Container) {
 
 func (model *Model) ContainerStarted(container *Container) {
 
+	if container.status == Started {
+		return
+	}
+
 	if container.status != Starting {
 		log.Warningf("Marking container %s as Started, expected it to be Starting, but is in status %s.", container.name, container.status)
 	}
 
 	container.status = Started
-	log.Infof("Container %s (%s) has started.\n", container.name, container.containerId)
+	log.Infof("Container %s (%s) has started.", container.name, container.containerId)
 }
 
 func (model *Model) ContainerReady(container *Container) {
+
+	if container.status == Ready {
+		return
+	}
 
 	if container.status != Started && container.status != Starting {
 		log.Warningf("Marking container %s as Ready, expected it to be Started or Starting, but is in status %s.", container.name, container.status)
@@ -113,16 +126,24 @@ func (model *Model) ContainerReady(container *Container) {
 
 func (model *Model) ContainerCreated(container *Container) {
 
+	if container.status == Created {
+		return
+	}
+
 	if container.status != Creating {
 		log.Warningf("Marking container %s as Created, expected it to be Creating, but is in status %s.", container.name, container.status)
 	}
 
 	container.status = Created
 	container.createStartedAt = time.Now()
-	log.Debugf("Container %s (%s) has been created.\n", container.name, container.containerId)
+	log.Debugf("Container %s (%s) has been created.", container.name, container.containerId)
 }
 
 func (model *Model) ContainerStarting(container *Container) {
+
+	if container.status == Starting {
+		return
+	}
 
 	if container.status != Created {
 		log.Warningf("Marking container %s as Starting, expected it to be Created, but is in status %s.", container.name, container.status)
@@ -130,26 +151,38 @@ func (model *Model) ContainerStarting(container *Container) {
 
 	container.status = Starting
 	container.startStartededAt = time.Now()
-	log.Debugf("Container %s marked as starting.\n", container.name)
+	log.Debugf("Container %s marked as starting.", container.name)
 }
 
 func (model *Model) ContainerFailed(container *Container) {
+	if container.status == Failed {
+		return
+	}
+
 	container.status = Failed
 	container.failedAt = time.Now()
-	log.Warningf("Container %s has failed.\n", container.name)
+	log.Warningf("Container %s has failed.", container.name)
 }
 
 func (model *Model) ContainerStopped(container *Container) {
+	if container.status == Stopped {
+		return
+	}
+
 	container.status = Stopped
-	log.Infof("Container %s (%s) has stopped.\n", container.name, container.containerId)
+	log.Infof("Container %s (%s) has stopped.", container.name, container.containerId)
 }
 
 func (model *Model) ContainerDestroyed(container *Container) {
+
+	if container.status == Destroyed {
+		return
+	}
 
 	if container.status != Destroying {
 		log.Warningf("Marking container %s as Destroyed, expected it to be Destroying, but is in status %s.", container.name, container.status)
 	}
 
 	container.status = Destroyed
-	log.Debugf("Container %s (%s) has been destroyed.\n", container.name, container.containerId)
+	log.Debugf("Container %s (%s) has been destroyed.", container.name, container.containerId)
 }
